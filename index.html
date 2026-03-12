@@ -536,7 +536,7 @@
       Mercury: [], Venus: [],
       Earth: [
         { name: 'Луна', color: '#ccc',
-          img: 'moons/moon.jpg',
+          img: 'moons/moon.jpg', zoomImg: 'moons/moon.png',
           orbitR: 60, periodDays: 27.32, diamKm: 3474, distKm: 384400,
           desc: 'Луна родилась из обломков после грандиозного столкновения Земли с объектом размером с Марс около 4.5 млрд лет назад. Она в 400 раз меньше Солнца, но ровно в 400 раз ближе — именно поэтому солнечные затмения такие идеальные. Луна всегда повёрнута к нам одной стороной: её вращение «заперто» приливными силами Земли. Она не просто украшает ночное небо — она стабилизирует наклон земной оси, защищая нас от климатических катастроф. 12 человек побывали на Луне в 1969–1972 годах, и их следы до сих пор там: без ветра и эрозии они сохранятся миллионы лет. Каждый год Луна отдаляется от Земли на 3.8 см — совсем чуть-чуть, но за миллиарды лет это превратится в огромное расстояние.' }
       ],
@@ -596,7 +596,7 @@
       ],
       Pluto: [
         { name: 'Харон', color: '#b0a0a0',
-          img: 'moons/Charon.jpg',
+          img: 'moons/Charon.jpg', zoomImg: 'moons/Charon.png',
           orbitR: 55, periodDays: 6.387, diamKm: 1212, distKm: 19570,
           desc: 'Харон настолько велик по сравнению с Плутоном, что учёные называют их не планетой со спутником, а двойной карликовой планетой. Они всегда смотрят друг на друга одной стороной — как два партнёра в танце. Красноватый полюс Харона, прозванный «Мордор Макула», — предположительно органические молекулы, которые «улетают» с Плутона и оседают здесь. Открыл Харона в 1978 году Джеймс Кристи, заметив крошечный «выступ» на размытом снимке Плутона — поначалу решил, что дефект фотографии. В 2015 году зонд New Horizons прислал первые чёткие снимки обоих тел.' }
       ],
@@ -643,7 +643,7 @@
         speedKms: 24.1, moonCount: 2, moonCountNote: 'Фобос, Деймос',
         img: 'planets/mars.jpg',
         zoomImg: 'planets/mars.png',
-        type: 'Планета земной группы', hasMarsM: true,
+        type: 'Планета земной группы',
         desc: 'Марс хранит следы совсем другого прошлого: 3–4 млрд лет назад по нему текли реки и плескались озёра. Сегодня здесь красная пустыня из железной ржавчины, где гравитация всего 38% от земной. Зато масштабы впечатляют: вулкан Олимп высотой 21 км — крупнейший в Солнечной системе, а каньон Маринер растянулся на 4 000 км. Пылевые бури порой накрывают всю планету на месяцы. Марсианские сутки — 24 часа 37 минут, почти как наши. Именно поэтому Марс — главный кандидат для первой колонии: там есть вода, знакомый ритм дня и хоть какой-то материал для строительства.'
       },
       {
@@ -908,13 +908,6 @@
           } catch(e) {}
         }
 
-        // ── Mars moons (simulated circular orbits) ──
-        if (p.hasMarsM) {
-          const d = simTime.getTime() / MS_PER_DAY;
-          drawMoon(px, py, (d / 0.31891) * Math.PI * 2, p.r + 6,  '#bbb', 1.5); // Фобос
-          drawMoon(px, py, (d / 1.26244) * Math.PI * 2, p.r + 10, '#999', 1.5); // Деймос
-        }
-
         // ── Jupiter's Galilean moons ──
         if (p.hasGalilean) {
           try {
@@ -928,6 +921,18 @@
               drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5)
             );
           } catch(e) {}
+        }
+
+        // ── Other moons from MOON_DATA (Mars, Saturn, Uranus, Neptune, Pluto) ──
+        if (!p.hasMoon && !p.hasGalilean) {
+          const moons = MOON_DATA[p.body] || [];
+          if (moons.length) {
+            const d = simTime.getTime() / MS_PER_DAY;
+            const minOff = p.hasRings ? Math.ceil(p.r * 2.5) : p.r + 6;
+            moons.forEach((moon, i) => {
+              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5);
+            });
+          }
         }
       });
 
@@ -1154,6 +1159,7 @@
     }
     // Preload all planet images at startup (включая zoomImg — прозрачные PNG)
     [...PLANETS, SUN].forEach(p => { getImg(p.img); if (p.zoomImg) getImg(p.zoomImg); });
+    Object.values(MOON_DATA).flat().forEach(m => { getImg(m.img); if (m.zoomImg) getImg(m.zoomImg); });
     let zoomLastTS = null;
     const ZOOM_DAYS_PER_SEC = 0.1;
 
@@ -1322,9 +1328,14 @@
         zoomMoonPos.push({ ...moon, mx, my, mr });
 
         zctx.shadowBlur = 8; zctx.shadowColor = moon.color;
-        zctx.beginPath();
-        zctx.arc(mx, my, mr, 0, Math.PI * 2);
-        zctx.fillStyle = moon.color; zctx.fill();
+        const mImg = moon.zoomImg ? getImg(moon.zoomImg) : null;
+        if (mImg && mImg.complete && mImg.naturalWidth > 0) {
+          zctx.drawImage(mImg, mx - mr, my - mr, mr * 2, mr * 2);
+        } else {
+          zctx.beginPath();
+          zctx.arc(mx, my, mr, 0, Math.PI * 2);
+          zctx.fillStyle = moon.color; zctx.fill();
+        }
         zctx.shadowBlur = 0; zctx.shadowColor = 'transparent';
 
         zctx.font = '10px sans-serif';
