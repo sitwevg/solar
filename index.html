@@ -815,6 +815,13 @@
         ctx.fill();
       });
       ctx.globalAlpha = 1;
+      // Надпись пояса Койпера
+      const rInner = auToPx(30), rOuter = auToPx(50);
+      const rLabel = (rInner + rOuter) / 2;
+      ctx.font = '9px sans-serif';
+      ctx.fillStyle = 'rgba(180, 210, 255, 0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Пояс Койпера', cx, cy - rLabel - 4);
       ctx.restore();
     }
 
@@ -908,7 +915,7 @@
       try { earthVec = Astronomy.HelioVector(Astronomy.Body.Earth, simTime); } catch(e) {}
 
       planetPos = [];
-      const moonVis = Math.max(0, Math.min(1, (viewScale - 2.5) / 0.5));
+      const moonVis = Math.max(0, Math.min(1, (viewScale - 2.0) / 0.5));
 
       PLANETS.forEach(p => {
         let vec;
