@@ -1152,8 +1152,8 @@
       if (!_imgCache[url]) { const i = new Image(); i.src = url; _imgCache[url] = i; }
       return _imgCache[url];
     }
-    // Preload all planet images at startup
-    [...PLANETS, SUN].forEach(p => getImg(p.img));
+    // Preload all planet images at startup (включая zoomImg — прозрачные PNG)
+    [...PLANETS, SUN].forEach(p => { getImg(p.img); if (p.zoomImg) getImg(p.zoomImg); });
     let zoomLastTS = null;
     const ZOOM_DAYS_PER_SEC = 0.1;
 
@@ -1168,13 +1168,19 @@
       zoomTime = new Date(simTime.getTime());
       zoomLastTS = null;
       zoomView.classList.add('open');
-      // Size canvas using window dimensions (reliable across all browsers)
+      // Ждём загрузки картинки планеты, только потом запускаем рендер
+      const imgUrl = planet.zoomImg || planet.img;
+      const img = imgUrl ? getImg(imgUrl) : null;
       requestAnimationFrame(() => {
         const canvasH = Math.max(100, zoomCanvas.offsetHeight || (window.innerHeight - 80));
         zoomCanvas.width  = window.innerWidth;
         zoomCanvas.height = canvasH;
         if (zoomRAF) cancelAnimationFrame(zoomRAF);
-        zoomRAF = requestAnimationFrame(renderZoom);
+        if (img && !img.complete) {
+          img.onload = () => { zoomRAF = requestAnimationFrame(renderZoom); };
+        } else {
+          zoomRAF = requestAnimationFrame(renderZoom);
+        }
       });
     }
 
