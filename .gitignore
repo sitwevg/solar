@@ -1,0 +1,19 @@
+# Служебные файлы Claude
+CLAUDE.md
+MEMORY.md
+
+# Архивы и мусор
+*.zip
+*.tar.gz
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Редакторы
+.vscode/
+.idea/
+*.swp
+*~

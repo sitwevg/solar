@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Солнечная система</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- CommonJS-in-browser wrapper -->
+  <script>var exports = {}; var module = { exports: exports };</script>
+  <script src="astronomy.js"></script>
+  <script>var Astronomy = module.exports;</script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #010614;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+    #c { display: block; position: fixed; top: 0; left: 0; }
+
+    /* HUD */
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #date-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
+    #now-btn {
+      pointer-events: all;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      color: rgba(255,255,255,0.65);
+      font-size: 12px;
+      padding: 5px 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #now-btn:active { background: rgba(255,255,255,0.18); }
+
+    /* Info panel */
+    #panel {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(4, 8, 26, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid rgba(100, 130, 255, 0.2);
+      border-radius: 20px 20px 0 0;
+      padding: 20px 20px 36px;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 20;
+      max-height: 72vh;
+      overflow-y: auto;
+    }
+    #panel.open { transform: translateY(0); }
+    #panel.above-zoom { z-index: 40; }
+
+    #panel-header {
+      display: flex; flex-direction: column;
+      gap: 10px; margin-bottom: 14px;
+    }
+    #panel-header-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    #panel-header-body {
+      display: flex; flex-direction: row; align-items: stretch; gap: 12px;
+    }
+    #panel-name {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+    }
+    #panel-type {
+      font-size: 12px; color: rgba(255,255,255,0.4);
+      margin-top: 2px;
+    }
+    #panel-close {
+      background: rgba(255,255,255,0.08);
+      border: none; border-radius: 50%;
+      width: 28px; height: 28px;
+      color: rgba(255,255,255,0.55);
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    #panel-img {
+      flex: 1; min-width: 0;
+      border-radius: 14px;
+      object-fit: contain;
+      border: 1.5px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+    }
+    .stat-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 5px; margin-bottom: 0; width: 50vw; flex-shrink: 0;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.055);
+      border-radius: 10px; padding: 7px 9px;
+    }
+    .stat-label {
+      font-size: 10px; color: rgba(255,255,255,0.38);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 5px;
+    }
+    .stat-val { font-size: 15px; font-weight: 600; }
+    .stat-sub { font-size: 11px; color: rgba(255,255,255,0.38); margin-top: 2px; }
+    #panel-facts {
+      font-size: 12px; color: rgba(255,255,255,0.5);
+      line-height: 1.65;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 13px;
+    }
+    #moon-info-facts {
+      font-size: 12px; color: rgba(255,255,255,0.48);
+      line-height: 1.65;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 12px;
+    }
+    #zoom-btn {
+      display: block; width: 100%; margin-top: 14px;
+      padding: 11px;
+      background: rgba(100,130,255,0.10);
+      border: 1px solid rgba(100,130,255,0.22);
+      border-radius: 12px;
+      color: rgba(160,185,255,0.88);
+      font-size: 13px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    #zoom-btn:active { background: rgba(100,130,255,0.22); }
+
+    /* Zoom view */
+    #zoom-view {
+      position: fixed; inset: 0;
+      background: #010614;
+      z-index: 30;
+      display: flex; flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    #zoom-view.open { transform: translateY(0); }
+    #zoom-header {
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      padding: 12px 16px 6px; flex-shrink: 0;
+    }
+    #zoom-back { justify-self: start; }
+    #zoom-header-center {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      justify-self: center;
+    }
+    #zoom-close { justify-self: end; }
+    #zoom-title { font-size: 18px; font-weight: 600; }
+    #zoom-date-label {
+      font-size: 11px; color: rgba(255,255,255,0.35);
+      font-variant-numeric: tabular-nums; letter-spacing: 0.04em;
+    }
+    #zoom-back {
+      background: rgba(100,130,255,0.12);
+      border: 1px solid rgba(100,130,255,0.25);
+      border-radius: 20px;
+      padding: 7px 14px;
+      color: rgba(160,185,255,0.9);
+      font-size: 13px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    #zoom-back:active { background: rgba(100,130,255,0.25); }
+    #zoom-close {
+      background: rgba(255,255,255,0.08); border: none; border-radius: 50%;
+      width: 32px; height: 32px; color: rgba(255,255,255,0.55);
+      font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #zoom-hint {
+      text-align: center; font-size: 11px;
+      color: rgba(255,255,255,0.25); padding-bottom: 4px; flex-shrink: 0;
+    }
+    #zoom-canvas { flex: 1 1 0; min-height: 0; display: block; width: 100%; }
+
+    /* Moon info sheet */
+    #moon-info {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(4,8,26,0.97);
+      border-top: 1px solid rgba(100,130,255,0.2);
+      border-radius: 20px 20px 0 0;
+      padding: 18px 20px 32px;
+      max-height: 65%;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 5;
+    }
+    #moon-info.open { transform: translateY(0); }
+    #moon-info-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #moon-info-name { font-size: 22px; font-weight: 700; }
+    #moon-info-sub { font-size: 12px; color: rgba(255,255,255,0.38); margin-top: 2px; }
+    #moon-info-close {
+      background: rgba(255,255,255,0.08); border: none; border-radius: 50%;
+      width: 28px; height: 28px; color: rgba(255,255,255,0.55);
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    #moon-info-body {
+      display: flex; flex-direction: row; align-items: stretch;
+      gap: 12px; margin-bottom: 12px;
+    }
+    #moon-info-img {
+      flex: 1; min-width: 0;
+      border-radius: 14px;
+      object-fit: contain;
+      border: 1.5px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+    }
+    .moon-stat-row {
+      display: grid; grid-template-columns: 1fr;
+      gap: 5px; width: 50vw; flex-shrink: 0;
+    }
+    #moon-info-fact {
+      font-size: 12px; color: rgba(255,255,255,0.48); line-height: 1.6;
+      border-top: 1px solid rgba(255,255,255,0.07); padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div id="date-label"></div>
+    <button id="now-btn">⦿ Сейчас</button>
+  </div>
+
+  <div id="panel">
+    <div id="panel-header">
+      <div id="panel-header-top">
+        <div>
+          <div id="panel-name"></div>
+          <div id="panel-type"></div>
+        </div>
+        <button id="panel-close">×</button>
+      </div>
+      <div id="panel-header-body">
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-label" id="sl-sun">До Солнца</div>
+            <div class="stat-val" id="s-sun-au"></div>
+            <div class="stat-sub" id="s-sun-km"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="sl-earth">До Земли</div>
+            <div class="stat-val" id="s-earth-au"></div>
+            <div class="stat-sub" id="s-earth-km"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="sl-period">Период орбиты</div>
+            <div class="stat-val" id="s-period"></div>
+            <div class="stat-sub" id="s-period-sub"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="sl-diam">Диаметр</div>
+            <div class="stat-val" id="s-diam"></div>
+            <div class="stat-sub" id="s-diam-sub"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="sl-speed">Скорость</div>
+            <div class="stat-val" id="s-speed"></div>
+            <div class="stat-sub" id="s-speed-sub">км/с по орбите</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label" id="sl-moons">Спутники</div>
+            <div class="stat-val" id="s-moons"></div>
+            <div class="stat-sub" id="s-moons-sub"></div>
+          </div>
+        </div>
+        <img id="panel-img" src="" alt="">
+      </div>
+    </div>
+    <p id="panel-facts"></p>
+    <button id="zoom-btn" style="display:none">🔭 Посмотреть вблизи</button>
+  </div>
+
+  <!-- Zoom view -->
+  <div id="zoom-view">
+    <div id="zoom-header">
+      <button id="zoom-back">← Назад</button>
+      <div id="zoom-header-center">
+        <div id="zoom-title"></div>
+        <div id="zoom-date-label"></div>
+      </div>
+      <button id="zoom-close">×</button>
+    </div>
+    <div id="zoom-hint">Нажмите на спутник для информации</div>
+    <canvas id="zoom-canvas"></canvas>
+    <div id="moon-info">
+      <div id="moon-info-top">
+        <div>
+          <div id="moon-info-name"></div>
+          <div id="moon-info-sub"></div>
+        </div>
+        <button id="moon-info-close">×</button>
+      </div>
+      <div id="moon-info-body">
+        <div class="moon-stat-row">
+          <div class="stat-box">
+            <div class="stat-label">Диаметр</div>
+            <div class="stat-val" id="m-diam"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Орбита</div>
+            <div class="stat-val" id="m-dist"></div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Период</div>
+            <div class="stat-val" id="m-period"></div>
+          </div>
+        </div>
+        <img id="moon-info-img" src="" alt="">
+      </div>
+      <p id="moon-info-facts"></p>
+    </div>
+  </div>
+
+  <script>
+    // ── Telegram WebApp ──────────────────────────────────────────────
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.expand(); }
+
+    // ── Canvas ───────────────────────────────────────────────────────
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let W, H, cx, cy, maxR;
+
+    function resize() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      cx = W / 2; cy = H / 2;
+      maxR = Math.min(W, H) / 2 * 0.87;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── Stars ─────────────────────────────────────────────────────────
+    const STARS = Array.from({ length: 380 }, () => ({
+      x:  Math.random(),
+      y:  Math.random(),
+      r:  Math.random() < 0.88 ? Math.random() * 0.85 + 0.15 : Math.random() * 1.8 + 0.9,
+      b:  Math.random() * 0.7 + 0.15,
+      sp: Math.random() * 1.4 + 0.3,
+      ph: Math.random() * Math.PI * 2,
+    }));
+
+    // ── Comets ────────────────────────────────────────────────────────
+    const comets = [];
+    let nextCometAt = 8000 + Math.random() * 15000;
+
+    function spawnComet(ts) {
+      const side = Math.floor(Math.random() * 4);
+      let x0, y0, x1, y1;
+      const pad = 100;
+      if (side === 0)      { x0 = Math.random()*W; y0 = -pad;   x1 = Math.random()*W; y1 = H+pad; }
+      else if (side === 1) { x0 = W+pad; y0 = Math.random()*H;  x1 = -pad;   y1 = Math.random()*H; }
+      else if (side === 2) { x0 = Math.random()*W; y0 = H+pad;  x1 = Math.random()*W; y1 = -pad; }
+      else                 { x0 = -pad; y0 = Math.random()*H;   x1 = W+pad;  y1 = Math.random()*H; }
+      comets.push({ x0, y0, x1, y1, start: ts, dur: 5000 + Math.random()*5000, tail: 70 + Math.random()*80 });
+    }
+
+    function drawComets(ts) {
+      if (ts >= nextCometAt) {
+        // 1–3 кометы разом, с небольшим разбросом старта
+        const burst = Math.random() < 0.3 ? 2 + Math.floor(Math.random()*2) : 1;
+        for (let b = 0; b < burst; b++) {
+          setTimeout(() => spawnComet(performance.now()), b * (300 + Math.random()*600));
+        }
+        // Следующий залп — через 10–50 сек (широкий разброс = «то ничего, то несколько»)
+        nextCometAt = ts + 10000 + Math.random() * 40000;
+      }
+      for (let i = comets.length - 1; i >= 0; i--) {
+        const c = comets[i];
+        const t = (ts - c.start) / c.dur;
+        if (t > 1) { comets.splice(i, 1); continue; }
+        const x = c.x0 + (c.x1 - c.x0) * t;
+        const y = c.y0 + (c.y1 - c.y0) * t;
+        const dx = c.x1 - c.x0, dy = c.y1 - c.y0;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const tx = x - (dx/len) * c.tail, ty = y - (dy/len) * c.tail;
+        const a = t < 0.12 ? t/0.12 : t > 0.82 ? (1-t)/0.18 : 1;
+        ctx.save();
+        const grad = ctx.createLinearGradient(x, y, tx, ty);
+        grad.addColorStop(0, `rgba(200,225,255,${0.75*a})`);
+        grad.addColorStop(1, 'rgba(200,225,255,0)');
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.shadowBlur = 10; ctx.shadowColor = `rgba(170,210,255,${a})`;
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(235,245,255,${a})`; ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ── Meteors ───────────────────────────────────────────────────────
+    const meteors = [];
+    let nextMeteorAt = 3000 + Math.random() * 6000;
+
+    function spawnMeteor(ts, delayMs) {
+      setTimeout(() => {
+        const ang = Math.random() * Math.PI * 2;
+        meteors.push({ x: Math.random()*W, y: Math.random()*H, ang,
+          spd: 900 + Math.random()*700, tail: 35 + Math.random()*50,
+          start: performance.now(), dur: 300 + Math.random()*400 });
+      }, delayMs);
+    }
+
+    function drawMeteors(ts) {
+      if (ts >= nextMeteorAt) {
+        // 1–4 метеора разом с небольшим разбросом
+        const burst = Math.random() < 0.35 ? 2 + Math.floor(Math.random()*3) : 1;
+        for (let b = 0; b < burst; b++) {
+          spawnMeteor(ts, b * (100 + Math.random()*300));
+        }
+        // Следующий залп — через 5–35 сек
+        nextMeteorAt = ts + 5000 + Math.random() * 30000;
+      }
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        const el = ts - m.start, t = el / m.dur;
+        if (t > 1) { meteors.splice(i, 1); continue; }
+        const dist = (el/1000) * m.spd;
+        const x = m.x + Math.cos(m.ang)*dist, y = m.y + Math.sin(m.ang)*dist;
+        const tx = x - Math.cos(m.ang)*m.tail, ty = y - Math.sin(m.ang)*m.tail;
+        const a = t < 0.2 ? t/0.2 : 1 - t;
+        ctx.save();
+        const grad = ctx.createLinearGradient(x, y, tx, ty);
+        grad.addColorStop(0, `rgba(255,255,255,${0.9*a})`);
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = grad; ctx.lineWidth = 1; ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ── Moon data ─────────────────────────────────────────────────────
+    const MOON_DATA = {
+      Mercury: [], Venus: [],
+      Earth: [
+        { name: 'Луна', color: '#ccc',
+          img: 'moons/moon.jpg',
+          orbitR: 60, periodDays: 27.32, diamKm: 3474, distKm: 384400,
+          desc: 'Луна родилась из обломков после грандиозного столкновения Земли с объектом размером с Марс около 4.5 млрд лет назад. Она в 400 раз меньше Солнца, но ровно в 400 раз ближе — именно поэтому солнечные затмения такие идеальные. Луна всегда повёрнута к нам одной стороной: её вращение «заперто» приливными силами Земли. Она не просто украшает ночное небо — она стабилизирует наклон земной оси, защищая нас от климатических катастроф. 12 человек побывали на Луне в 1969–1972 годах, и их следы до сих пор там: без ветра и эрозии они сохранятся миллионы лет. Каждый год Луна отдаляется от Земли на 3.8 см — совсем чуть-чуть, но за миллиарды лет это превратится в огромное расстояние.' }
+      ],
+      Mars: [
+        { name: 'Фобос', color: '#b0a898',
+          img: 'moons/phobos.jpg',
+          orbitR: 50, periodDays: 0.319, diamKm: 22, distKm: 9376,
+          desc: 'Фобос — рекордсмен по скорости: он облетает Марс трижды за одни марсианские сутки, двигаясь быстрее, чем сама планета вращается. Это бугристый обломок неправильной формы, похожий на картофелину (27×21×18 км), весь покрытый толстым слоем пыли от метеоритных ударов. С поверхности Марса Фобос выглядит не диском, а быстро бегущей звездой. Судьба у него незавидная: он медленно падает на Марс и через ~50 млн лет либо врежется в него, либо рассыплется в кольцо. Открыл Фобос Асаф Холл в 1877 году — всего через неделю после того, как обнаружил Деймос.' },
+        { name: 'Деймос', color: '#888',
+          img: 'moons/deimos.jpg',
+          orbitR: 80, periodDays: 1.263, diamKm: 12, distKm: 23460,
+          desc: 'Деймос — один из самых маленьких спутников во всей Солнечной системе, всего около 15×12×10 км. В отличие от своего «брата» Фобоса, он медленно удаляется от Марса, и его судьба пока под вопросом. Поверхность у Деймоса удивительно гладкая: старые кратеры давно засыпало реголитом. С Марса он виден почти как обычная звезда — слишком мал, чтобы быть заметным диском. Оба спутника Марса открыл американский астроном Асаф Холл в 1877 году, вдохновившись поисками, которые едва не бросил. Названы в честь греческих богов страха и ужаса — спутников бога войны Ареса.' }
+      ],
+      Jupiter: [
+        { name: 'Ио', color: '#ffe878',
+          img: 'moons/io.jpg',
+          orbitR: 55, periodDays: 1.769, diamKm: 3643, distKm: 421700,
+          desc: 'Ио — самый вулканически активный объект во всей Солнечной системе: здесь бурлит более 400 действующих вулканов. Причина такой активности — гравитационное «перетягивание» между Юпитером и другими галилеевыми спутниками: Ио буквально мнут, как резиновый мячик, разогревая недра. Вулкан Пеле выбрасывает газ на высоту до 300 км! Поверхность Ио постоянно обновляется лавой, поэтому кратеров здесь почти нет — они просто засыпаются. Характерный жёлто-оранжевый цвет — это отложения серы и серного диоксида. Открыл Ио Галилео Галилей в 1610 году.' },
+        { name: 'Европа', color: '#c8d8e0',
+          img: 'moons/europa.jpg',
+          orbitR: 75, periodDays: 3.551, diamKm: 3122, distKm: 671100,
+          desc: 'Европа — главная надежда астрономов в поисках внеземной жизни. Под её гладкой ледяной корой скрывается настоящий океан жидкой воды глубиной до 100 км — больше всех земных океанов вместе взятых. На поверхности видны тысячи тёмных трещин: это следы того, как приливные силы Юпитера постоянно «жуют» лёд. Возможно, на дне океана есть гидротермальные источники — именно там на Земле нашли жизнь в кромешной тьме. Зонд Europa Clipper, запущенный в 2024 году, летит к Европе, чтобы проверить это.' },
+        { name: 'Ганимед', color: '#9090a8',
+          img: 'moons/Ganymede.jpg',
+          orbitR: 98, periodDays: 7.155, diamKm: 5268, distKm: 1070400,
+          desc: 'Ганимед — крупнейший спутник во всей Солнечной системе: он больше планеты Меркурий и лишь немного уступает Марсу. Если бы он обращался вокруг Солнца, а не вокруг Юпитера — его смело можно было бы назвать планетой. Ганимед — единственный спутник с собственным магнитным полем, которое создаёт маленькие полярные сияния. Под поверхностью, по всей видимости, плещется огромный солёный океан. Зонд JUICE (ESA) специально летит к Ганимеду и должен прибыть около 2034 года.' },
+        { name: 'Каллисто', color: '#707070',
+          img: 'moons/callisto.jpg',
+          orbitR: 125, periodDays: 16.69, diamKm: 4821, distKm: 1882700,
+          desc: 'Каллисто — древнейший «архив» Солнечной системы. Её поверхность покрыта таким количеством кратеров, что новым просто негде появиться: геологически она почти не менялась за 4 миллиарда лет. Зато она находится за пределами опасных радиационных поясов Юпитера, что делает её самым удобным местом для будущей базы. Под корой возможен жидкий солёный океан — как у соседних спутников. Открыл Каллисто Галилей в 1610 году, даже не подозревая, насколько удивительной окажется эта «скучная» точка света.' }
+      ],
+      Saturn: [
+        { name: 'Энцелад', color: '#eef4ff',
+          img: 'moons/enceladus.jpg',
+          orbitR: 52, periodDays: 1.370, diamKm: 504, distKm: 238020,
+          desc: 'Энцелад — маленький, но очень шумный: через трещины у Южного полюса он постоянно выбрасывает в космос гейзеры водяного пара и льда. Именно эти гейзеры питают кольцо E Сатурна — самое широкое и тонкое из всех его колец. Зонд «Кассини» дважды пролетал прямо сквозь эти фонтаны и обнаружил молекулы водорода — верный признак гидротермальной активности на дне подлёдного океана. Под ледяной корой Энцелада плещется глобальный океан с органическими молекулами, теплом и энергией. По совокупности условий для жизни он — один из главных претендентов в нашей Солнечной системе.' },
+        { name: 'Титан', color: '#e8a840',
+          img: 'moons/Titan.jpeg',
+          orbitR: 85, periodDays: 15.95, diamKm: 5150, distKm: 1221870,
+          desc: 'Титан — единственный спутник в Солнечной системе с настоящей плотной атмосферой, и она даже гуще земной. Но вместо воды здесь царит метан: реки, озёра и дожди из жидкого метана и этана при температуре −179°C. В 2005 году зонд Гюйгенс впервые в истории приземлился на спутнике в внешней Солнечной системе — и прислал снимки оранжевого неба и речных берегов. В 2028 году NASA планирует отправить на Титан дрон-вертолёт Dragonfly, чтобы облетать разные точки и поискать признаки химии, похожей на жизнь.' }
+      ],
+      Uranus: [
+        { name: 'Титания', color: '#a8c8d8',
+          img: 'moons/Titania.jpg',
+          orbitR: 60, periodDays: 8.706, diamKm: 1578, distKm: 436300,
+          desc: 'Титания — крупнейший спутник Урана, названная в честь королевы фей из шекспировского «Сна в летнюю ночь». Её поверхность рассечена огромными каньонами — свидетелями геологической активности в далёком прошлом. Рядом с ними стоят древние кратеры, а значит, планета успела и бурлить, и остыть. Под поверхностью, возможно, прячется жидкая вода. Единственное «фото на память» сделал «Вояджер-2» при пролёте в 1986 году — с тех пор ни один аппарат к Урану не добирался.' },
+        { name: 'Оберон', color: '#9090a0',
+          img: 'moons/Oberon.jpg',
+          orbitR: 85, periodDays: 13.46, diamKm: 1523, distKm: 583500,
+          desc: 'Оберон — самый внешний из крупных спутников Урана, названный в честь короля фей из Шекспира. Его поверхность — одна из самых древних и изрытых кратерами в системе: за миллиарды лет сюда прилетело всё, что только можно. На дне некоторых кратеров видны тёмные пятна — предположительно органический материал, возможно занесённый кометами. Оберон открыл Уильям Гершель в 1787 году — тот самый, что ранее нашёл сам Уран. «Вояджер-2» в 1986 году стал единственным гостем из Земли.' }
+      ],
+      Neptune: [
+        { name: 'Тритон', color: '#90b8d8',
+          img: 'moons/Triton.jpg',
+          orbitR: 65, periodDays: 5.877, diamKm: 2707, distKm: 354760,
+          desc: 'Тритон — чужак в системе Нептуна: он движется в обратную сторону относительно вращения планеты, а значит, скорее всего был захвачен из пояса Койпера миллиарды лет назад. За такое «неправильное» поведение приходится платить: приливные силы Нептуна постепенно тормозят Тритон, и через ~3.6 млрд лет он разрушится — то ли упадёт, то ли образует новое кольцо. При этом на поверхности, где стоит −235°C, фонтанируют азотные гейзеры — невероятное зрелище на почти безжизненной планете. Единственный визит нанёс «Вояджер-2» в 1989 году.' }
+      ],
+      Pluto: [
+        { name: 'Харон', color: '#b0a0a0',
+          img: 'moons/Charon.jpg',
+          orbitR: 55, periodDays: 6.387, diamKm: 1212, distKm: 19570,
+          desc: 'Харон настолько велик по сравнению с Плутоном, что учёные называют их не планетой со спутником, а двойной карликовой планетой. Они всегда смотрят друг на друга одной стороной — как два партнёра в танце. Красноватый полюс Харона, прозванный «Мордор Макула», — предположительно органические молекулы, которые «улетают» с Плутона и оседают здесь. Открыл Харона в 1978 году Джеймс Кристи, заметив крошечный «выступ» на размытом снимке Плутона — поначалу решил, что дефект фотографии. В 2015 году зонд New Horizons прислал первые чёткие снимки обоих тел.' }
+      ],
+    };
+
+    // ── Planet data ───────────────────────────────────────────────────
+    const AU_KM = 149597870.7;
+
+    const PLANETS = [
+      {
+        name: 'Меркурий', body: 'Mercury', color: '#aaa8a0',
+        r: 2.5, sma: 0.387,
+        prd: '88 суток', diamKm: 4879, prdDays: 88,
+        speedKms: 47.4, moonCount: 0, moonCountNote: 'нет спутников',
+        img: 'planets/mercury.jpg',
+        zoomImg: 'planets/mercury.png',
+        type: 'Планета земной группы',
+        desc: 'Меркурий — настоящий чемпион по крайностям. Здесь сутки длиннее года: планета оборачивается вокруг оси за 59 земных суток, а вокруг Солнца — за 88. Температура скачет от +430°C днём до −180°C ночью — никакая атмосфера не сглаживает перепад. При этом в вечно тёмных полярных кратерах лежит водяной лёд. Железное ядро у Меркурия непропорционально огромное — оно занимает 85% радиуса, и планета медленно сжимается по мере остывания. Даже орбита у него особенная: аномальное смещение перигелия объяснила только теория относительности Эйнштейна — это был один из первых её триумфов.'
+      },
+      {
+        name: 'Венера', body: 'Venus', color: '#e8c46a',
+        r: 4.5, sma: 0.723,
+        prd: '225 суток', diamKm: 12104, prdDays: 225,
+        speedKms: 35.0, moonCount: 0, moonCountNote: 'нет спутников',
+        img: 'planets/venus.jpg',
+        zoomImg: 'planets/venus.png',
+        type: 'Планета земной группы',
+        desc: 'Венера — «сестра-близнец» Земли по размеру и массе, но эволюция пошла здесь катастрофически иначе. Парниковый эффект разогрел атмосферу до +465°C — горячее, чем на Меркурии, хотя Венера вдвое дальше от Солнца. Давление на поверхности в 92 раза выше земного — как на глубине 900 м в океане. Советские зонды «Венера» выживали там лишь около двух часов. Для полноты картины: Венера вращается в обратную сторону (Солнце встаёт на западе), а сутки на ней длиннее года. Зато облака из серной кислоты отражают 70% света — поэтому Венера такая яркая в ночном небе.'
+      },
+      {
+        name: 'Земля', body: 'Earth', color: '#4488ee',
+        r: 5, sma: 1.0,
+        prd: '365 суток', diamKm: 12742, prdDays: 365,
+        speedKms: 29.8, moonCount: 1, moonCountNote: 'Луна',
+        img: 'planets/earth.jpg',
+        zoomImg: 'planets/earth.png',
+        type: 'Планета земной группы', isEarth: true, hasMoon: true,
+        desc: 'Земля — единственная известная нам планета, где есть жизнь. Она находится в «зоне обитаемости» — на идеальном расстоянии от Солнца, где вода может быть жидкой. Атмосфера с кислородом — это подарок от цианобактерий, которые 2.4 млрд лет назад начали насыщать воздух O₂ и фактически изменили всю планету. Тектонические плиты медленно перекраивают лик Земли — со скоростью роста ногтей, зато неуклонно. Магнитное поле защищает нас от губительного солнечного ветра. А Луна выступает стабилизатором оси: без неё климатические катастрофы были бы неизбежны.'
+      },
+      {
+        name: 'Марс', body: 'Mars', color: '#c1440e',
+        r: 4, sma: 1.524,
+        prd: '687 суток', diamKm: 6779, prdDays: 687,
+        speedKms: 24.1, moonCount: 2, moonCountNote: 'Фобос, Деймос',
+        img: 'planets/mars.jpg',
+        zoomImg: 'planets/mars.png',
+        type: 'Планета земной группы', hasMarsM: true,
+        desc: 'Марс хранит следы совсем другого прошлого: 3–4 млрд лет назад по нему текли реки и плескались озёра. Сегодня здесь красная пустыня из железной ржавчины, где гравитация всего 38% от земной. Зато масштабы впечатляют: вулкан Олимп высотой 21 км — крупнейший в Солнечной системе, а каньон Маринер растянулся на 4 000 км. Пылевые бури порой накрывают всю планету на месяцы. Марсианские сутки — 24 часа 37 минут, почти как наши. Именно поэтому Марс — главный кандидат для первой колонии: там есть вода, знакомый ритм дня и хоть какой-то материал для строительства.'
+      },
+      {
+        name: 'Юпитер', body: 'Jupiter', color: '#c88b3a',
+        r: 13, sma: 5.203,
+        prd: '11,9 лет', diamKm: 139820, prdDays: 4333,
+        speedKms: 13.1, moonCount: 95, moonCountNote: '4 крупных галилеевых',
+        img: 'planets/jupiter.jpg',
+        zoomImg: 'planets/jupiter.png',
+        type: 'Газовый гигант', hasGalilean: true,
+        desc: 'Юпитер — безусловный король Солнечной системы: он в 2.5 раза тяжелее всех остальных планет вместе взятых. Его гравитация действует как небесный щит — притягивая к себе астероиды и кометы, которые иначе могли бы долететь до Земли. Большое Красное Пятно — это шторм размером с Земли, который бушует уже более 400 лет. Юпитер вращается так быстро (~10 часов в сутки), что заметно сплюснут у полюсов. Под атмосферой водород под огромным давлением становится металлическим — жидким проводником, который и создаёт колоссальное магнитное поле планеты. Если бы Юпитер был в 75 раз массивнее, он превратился бы в звезду.'
+      },
+      {
+        name: 'Сатурн', body: 'Saturn', color: '#e4d191',
+        r: 11, sma: 9.537,
+        prd: '29,5 лет', diamKm: 116460, prdDays: 10759,
+        speedKms: 9.7, moonCount: 146, moonCountNote: 'Титан, Энцелад и др.',
+        img: 'planets/saturn.jpg',
+        zoomImg: 'planets/saturn.png',
+        type: 'Газовый гигант', hasRings: true,
+        desc: 'Сатурн — самая узнаваемая планета Солнечной системы благодаря своим кольцам. Они раскинулись на 282 000 км, но при этом тонкие как бумага: всего 20–200 метров. Кольца молодые — им 10–100 млн лет, они появились уже при динозаврах — и постепенно осыпаются на планету. Сам Сатурн настолько лёгкий (плотность ниже воды!), что теоретически мог бы плавать в огромном океане. На Северном полюсе бушует постоянный шестиугольный ураган диаметром 25 000 км — геометрически идеальный, как нарисованный. Зонд «Кассини» провёл здесь 13 лет, а в 2017 году намеренно сгорел в атмосфере, чтобы не заразить спутники.'
+      },
+      {
+        name: 'Уран', body: 'Uranus', color: '#7fffd4',
+        r: 8, sma: 19.19,
+        prd: '84 года', diamKm: 50724, prdDays: 30687,
+        speedKms: 6.8, moonCount: 28, moonCountNote: 'Титания, Оберон и др.',
+        img: 'planets/uranus.jpg',
+        zoomImg: 'planets/uranus.png',
+        type: 'Ледяной гигант',
+        desc: 'Уран — самая «лежачая» планета: его ось наклонена на 98°, и он буквально катится по орбите на боку. Из-за этого каждый полюс сначала 42 года смотрит прямо на Солнце, потом 42 года погружается в кромешную тьму. Атмосфера у Урана — самая холодная в Солнечной системе: минимум −224°C. Загадка: в отличие от других гигантов, Уран почти не излучает собственного тепла — почему, до сих пор неясно. Голубовато-зелёный цвет дарит метан, поглощающий красный свет. Открыл Уран в 1781 году Уильям Гершель — это первая планета, найденная с помощью телескопа. Все 28 его спутников названы в честь персонажей Шекспира.'
+      },
+      {
+        name: 'Нептун', body: 'Neptune', color: '#3f54ba',
+        r: 7, sma: 30.07,
+        prd: '165 лет', diamKm: 49244, prdDays: 60190,
+        speedKms: 5.4, moonCount: 16, moonCountNote: 'Тритон и др.',
+        img: 'planets/neptune.jpg',
+        zoomImg: 'planets/neptune.png',
+        type: 'Ледяной гигант',
+        desc: 'Нептун открыли не в телескоп — его вычислили математически: астрономы заметили странные отклонения в орбите Урана и предсказали существование невидимой планеты. Когда навели телескоп в нужную точку — она оказалась именно там. Нептун — планета рекордных ветров: до 2 100 км/ч, самые быстрые в Солнечной системе. С момента открытия в 1846 году он успел сделать чуть больше одного полного оборота вокруг Солнца — его год длится 165 земных лет. «Большое Тёмное Пятно» — аналог Красного Пятна Юпитера — появляется и бесследно исчезает за несколько лет. «Вояджер-2» побывал здесь единственный раз, в 1989 году.'
+      },
+      {
+        name: 'Плутон', body: 'Pluto', color: '#b89080',
+        r: 2, sma: 39.48,
+        prd: '248 лет', diamKm: 2376, prdDays: 90560,
+        speedKms: 4.7, moonCount: 5, moonCountNote: 'Харон и 4 малых',
+        img: 'planets/pluto.jpg',
+        zoomImg: 'planets/pluto.png',
+        type: 'Карликовая планета',
+        desc: 'Плутон — планета с непростой судьбой. В 2006 году его «разжаловали» в карликовые планеты, и миллионы школьников по всему миру пережили маленькую трагедию. Но сам Плутон не обиделся: в 2015 году зонд New Horizons показал, что он вполне живой. На поверхности — горы из водяного льда высотой 3 500 м и огромная ледяная равнина «Сердце Плутона» размером с Техас. Кратеров на удивление мало: значит, поверхность геологически молодая и продолжает меняться. Один плутонский год равен 248 земным — длиннее, чем вся письменная история человечества. На борту New Horizons летит прах Клайда Томбо, открывшего Плутон в 1930 году.'
+      },
+    ];
+
+    // ── Simulation ────────────────────────────────────────────────────
+    let simTime = new Date();
+    const MS_PER_DAY = 86400000;
+    const SIM_DAYS_PER_SEC = 1;
+    let lastTS = null;
+    let planetPos = [];
+
+    // ── Scale: AU → pixels (logarithmic) ─────────────────────────────
+    function auToPx(au) {
+      const L0 = Math.log10(0.2);
+      const L1 = Math.log10(52);
+      const lv = Math.log10(Math.max(au, 0.01));
+      return 35 + ((lv - L0) / (L1 - L0)) * (maxR - 35);
+    }
+
+    // Heliocentric (x, y) AU → canvas (px, py)
+    function h2s(x, y) {
+      const r = Math.sqrt(x * x + y * y);
+      const a = Math.atan2(y, x);
+      return [cx + auToPx(r) * Math.cos(a), cy - auToPx(r) * Math.sin(a)];
+    }
+
+    // ── Draw helpers ──────────────────────────────────────────────────
+    function drawStars(t) {
+      ctx.save();
+      STARS.forEach(s => {
+        const alpha = s.b * (0.55 + 0.45 * Math.sin(s.ph + t * s.sp * 0.0008));
+        ctx.globalAlpha = Math.max(0.04, alpha);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawSun(t) {
+      const p = 1 + 0.04 * Math.sin(t * 0.0007);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 72 * p);
+      g.addColorStop(0,    'rgba(255,255,220,0.95)');
+      g.addColorStop(0.14, 'rgba(255,200,55,0.7)');
+      g.addColorStop(0.42, 'rgba(255,120,0,0.22)');
+      g.addColorStop(1,    'rgba(255,50,0,0)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, 72 * p, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      // core
+      ctx.shadowBlur = 18; ctx.shadowColor = '#ffcc44';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+      ctx.fillStyle = '#fffce0'; ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+      // label
+      ctx.font = '10px sans-serif';
+      ctx.fillStyle = 'rgba(255,230,100,0.45)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Солнце', cx, cy + 22);
+    }
+
+    // Saturn rings: C-ring (faint), B-ring (bright), Cassini gap, A-ring, F-ring
+    // r = planet radius, front=true draws front half (0..PI), false = back half (PI..2PI)
+    function drawSaturnRingHalf(c, cx, cy, r, front) {
+      const TILT = 0.215; // ry/rx – viewing angle compression
+      const bands = [
+        { r0: 1.26, r1: 1.53, color: 'rgba(165,145,68,0.24)' },   // C ring — faint
+        { r0: 1.56, r1: 1.93, color: 'rgba(228,208,122,0.66)' },   // B ring — bright
+        // gap 1.93–2.02 = Cassini Division (no band drawn)
+        { r0: 2.04, r1: 2.28, color: 'rgba(210,190,108,0.48)' },   // A ring
+        { r0: 2.33, r1: 2.37, color: 'rgba(200,180,100,0.18)' },   // F ring — narrow
+      ];
+      const sa = front ? 0       : Math.PI;
+      const ea = front ? Math.PI : Math.PI * 2;
+      bands.forEach(b => {
+        const rxO = b.r1 * r, rxI = b.r0 * r;
+        c.save();
+        c.beginPath();
+        c.ellipse(cx, cy, rxO, rxO * TILT, 0, sa, ea);
+        c.ellipse(cx, cy, rxI, rxI * TILT, 0, ea, sa, true);
+        c.closePath();
+        c.fillStyle = b.color;
+        c.fill();
+        c.restore();
+      });
+    }
+
+    function drawOrbit(r) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.065)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    function drawMoon(px, py, angle, dr, color, r = 1.5) {
+      ctx.beginPath();
+      ctx.arc(px + dr * Math.cos(angle), py + dr * Math.sin(angle), r, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawLabel(px, py, p) {
+      ctx.textAlign = 'center';
+      if (p.isEarth) {
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = 'rgba(110,175,255,0.9)';
+        ctx.fillText(p.name, px, py - p.r - 6);
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = 'rgba(100,160,255,0.55)';
+        ctx.fillText('← вы здесь', px, py - p.r - 17);
+      } else {
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillText(p.name, px, py - p.r - 6);
+      }
+    }
+
+    // ── Main render loop ──────────────────────────────────────────────
+    function render(ts) {
+      if (lastTS !== null) {
+        simTime = new Date(simTime.getTime() + ((ts - lastTS) / 1000) * SIM_DAYS_PER_SEC * MS_PER_DAY);
+      }
+      lastTS = ts;
+
+      // Intro scale
+      if (introStart === null) introStart = ts;
+      const introElapsed = ts - introStart;
+      if (introElapsed < INTRO_DUR) {
+        introScale = 3.5 - 2.5 * easeOutCubic(introElapsed / INTRO_DUR);
+      } else {
+        introScale = 1;
+      }
+      ctx.save();
+      if (introScale !== 1) {
+        ctx.setTransform(introScale, 0, 0, introScale, cx * (1 - introScale), cy * (1 - introScale));
+      }
+
+      // Background
+      ctx.fillStyle = '#010614';
+      ctx.fillRect(0, 0, W, H);
+
+      drawStars(ts);
+      drawMeteors(ts);
+      drawComets(ts);
+
+      // Orbit rings
+      PLANETS.forEach(p => drawOrbit(auToPx(p.sma)));
+
+      drawSun(ts);
+
+      // Earth position for distance calc
+      let earthVec = null;
+      try { earthVec = Astronomy.HelioVector(Astronomy.Body.Earth, simTime); } catch(e) {}
+
+      planetPos = [];
+
+      PLANETS.forEach(p => {
+        let vec;
+        try { vec = Astronomy.HelioVector(Astronomy.Body[p.body], simTime); }
+        catch(e) { return; }
+
+        const [px, py] = h2s(vec.x, vec.y);
+        const distSun   = Math.sqrt(vec.x**2 + vec.y**2 + vec.z**2);
+        const distEarth = earthVec
+          ? Math.sqrt((vec.x-earthVec.x)**2+(vec.y-earthVec.y)**2+(vec.z-earthVec.z)**2)
+          : null;
+
+        planetPos.push({ ...p, px, py, distSun, distEarth });
+
+        // ── Saturn: back ring half ──
+        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, p.r, false);
+
+        // ── Planet body ──
+        ctx.shadowBlur = p.r * 2.8; ctx.shadowColor = p.color;
+        ctx.beginPath();
+        ctx.arc(px, py, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color; ctx.fill();
+        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+        // Earth indicator ring
+        if (p.isEarth) {
+          ctx.beginPath();
+          ctx.arc(px, py, p.r + 4, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(80,150,255,0.42)';
+          ctx.lineWidth = 1; ctx.stroke();
+        }
+
+        // ── Saturn: front ring half ──
+        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, p.r, true);
+
+        drawLabel(px, py, p);
+
+        // ── Earth's Moon ──
+        if (p.hasMoon) {
+          try {
+            const m = Astronomy.GeoMoon(simTime);
+            const eps = 23.44 * Math.PI / 180;
+            const my = m.y * Math.cos(eps) + m.z * Math.sin(eps);
+            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2);
+          } catch(e) {}
+        }
+
+        // ── Mars moons (simulated circular orbits) ──
+        if (p.hasMarsM) {
+          const d = simTime.getTime() / MS_PER_DAY;
+          drawMoon(px, py, (d / 0.31891) * Math.PI * 2, p.r + 6,  '#bbb', 1.5); // Фобос
+          drawMoon(px, py, (d / 1.26244) * Math.PI * 2, p.r + 10, '#999', 1.5); // Деймос
+        }
+
+        // ── Jupiter's Galilean moons ──
+        if (p.hasGalilean) {
+          try {
+            const jm = Astronomy.JupiterMoons(simTime);
+            [
+              { m: jm.io,       color: '#ffe878', dr: p.r + 8  },
+              { m: jm.europa,   color: '#c8d8e0', dr: p.r + 13 },
+              { m: jm.ganymede, color: '#9090a8', dr: p.r + 19 },
+              { m: jm.callisto, color: '#707070', dr: p.r + 26 },
+            ].forEach(({ m, color, dr }) =>
+              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5)
+            );
+          } catch(e) {}
+        }
+      });
+
+      ctx.restore();
+
+      // Date label
+      document.getElementById('date-label').textContent = fmtDate(simTime);
+
+      requestAnimationFrame(render);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    function fmtDate(d) {
+      const M = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+      return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    function fmtAU(au)  { return au.toFixed(2) + ' а.е.'; }
+    function fmtKm(au)  {
+      const km = au * AU_KM;
+      return km >= 1e9 ? (km/1e9).toFixed(2)+' млрд км' : (km/1e6).toFixed(0)+' млн км';
+    }
+
+    // ── Sun data ──────────────────────────────────────────────────────
+    const SUN = {
+      name: 'Солнце', body: 'Sun', color: '#ffe566', isSun: true,
+      type: 'Жёлтый карлик (G2V)',
+      img: 'planets/Sun.jpg',
+      desc: 'Солнце содержит 99.86% всей массы Солнечной системы — планеты, астероиды, кометы и всё остальное — это просто пыль вокруг него. Каждую секунду оно превращает 4 миллиона тонн вещества в чистую энергию через ядерный синтез. Фотон, рождённый в ядре, пробирается к поверхности от 10 000 до 170 000 лет — а затем за 8 минут долетает до Земли. Загадочный факт: корона Солнца (внешняя атмосфера) в сотни раз горячее самой поверхности — физики до сих пор не могут объяснить почему. Через ~5 млрд лет Солнце раздуется в красного гиганта и поглотит Землю. Но пока оно только на середине своего жизненного пути.',
+    };
+
+    // ── Desc renderer ─────────────────────────────────────────────────
+    function renderFacts(elId, desc) {
+      document.getElementById(elId).textContent = desc || '';
+    }
+
+    // ── Info panel ────────────────────────────────────────────────────
+    const panel = document.getElementById('panel');
+
+    function showPanel(p) {
+      currentPlanet = p;
+      document.getElementById('panel-name').textContent = p.name;
+      document.getElementById('panel-name').style.color = p.color;
+      document.getElementById('panel-type').textContent = p.type;
+      document.getElementById('panel-img').src = p.img || '';
+
+      if (p.isSun) {
+        document.getElementById('zoom-btn').style.display = 'none';
+        document.getElementById('sl-sun').textContent    = 'Диаметр';
+        document.getElementById('sl-earth').textContent  = 'До Земли';
+        document.getElementById('sl-period').textContent = 'Возраст';
+        document.getElementById('sl-diam').textContent   = 'Температура';
+        document.getElementById('sl-speed').textContent  = 'Скорость';
+        document.getElementById('sl-moons').textContent  = 'Планет';
+        document.getElementById('s-speed-sub').textContent = 'км/с орбита галактики';
+
+        document.getElementById('s-sun-au').textContent  = '1 392 700 км';
+        document.getElementById('s-sun-km').textContent  = '109 диаметров Земли';
+
+        let earthDist = 1.0;
+        try { const ev = Astronomy.HelioVector(Astronomy.Body.Earth, simTime);
+              earthDist = Math.sqrt(ev.x**2 + ev.y**2 + ev.z**2); } catch(e) {}
+        document.getElementById('s-earth-au').textContent = fmtAU(earthDist);
+        document.getElementById('s-earth-km').textContent = fmtKm(earthDist);
+
+        document.getElementById('s-period').textContent     = '4.6 млрд лет';
+        document.getElementById('s-period-sub').textContent = 'ещё ~5 млрд до финала';
+        document.getElementById('s-diam').textContent       = '5 778 К';
+        document.getElementById('s-diam-sub').textContent   = 'ядро: ~15 млн К';
+        document.getElementById('s-speed').textContent      = '220 км/с';
+        document.getElementById('s-moons').textContent      = '8';
+        document.getElementById('s-moons-sub').textContent  = '+ 5 карликовых';
+      } else {
+        const moons = MOON_DATA[p.body] || [];
+        document.getElementById('zoom-btn').style.display = 'block';
+        document.getElementById('sl-sun').textContent    = 'До Солнца';
+        document.getElementById('sl-earth').textContent  = 'До Земли';
+        document.getElementById('sl-period').textContent = 'Период орбиты';
+        document.getElementById('sl-diam').textContent   = 'Диаметр';
+        document.getElementById('sl-speed').textContent  = 'Скорость';
+        document.getElementById('sl-moons').textContent  = 'Спутники';
+        document.getElementById('s-speed-sub').textContent = 'км/с по орбите';
+
+        document.getElementById('s-sun-au').textContent = fmtAU(p.distSun);
+        document.getElementById('s-sun-km').textContent = fmtKm(p.distSun);
+
+        if (p.isEarth) {
+          document.getElementById('s-earth-au').textContent = '— вы здесь —';
+          document.getElementById('s-earth-km').textContent = '';
+        } else if (p.distEarth != null) {
+          document.getElementById('s-earth-au').textContent = fmtAU(p.distEarth);
+          document.getElementById('s-earth-km').textContent = fmtKm(p.distEarth);
+        }
+
+        document.getElementById('s-period').textContent     = p.prd;
+        document.getElementById('s-period-sub').textContent = `${p.prdDays.toLocaleString('ru')} дней`;
+        document.getElementById('s-diam').textContent       = p.diamKm.toLocaleString('ru') + ' км';
+        document.getElementById('s-diam-sub').textContent   = p.isEarth
+          ? 'наша планета' : `${(p.diamKm / 12742).toFixed(2)}× от Земли`;
+        document.getElementById('s-speed').textContent      = p.speedKms + ' км/с';
+        document.getElementById('s-moons').textContent      = p.moonCount;
+        document.getElementById('s-moons-sub').textContent  = p.moonCountNote;
+      }
+
+      renderFacts('panel-facts', p.desc || '');
+      panel.classList.add('open');
+    }
+
+    document.getElementById('panel-close').addEventListener('click', () => { panel.classList.remove('open'); panel.classList.remove('above-zoom'); });
+    document.getElementById('now-btn').addEventListener('click', () => { simTime = new Date(); });
+
+    // ── Touch / click (main canvas) ───────────────────────────────────
+    function findPlanet(x, y) {
+      if (Math.hypot(x - cx, y - cy) < 24) return SUN;
+      let best = null, bestDist = Infinity;
+      planetPos.forEach(p => {
+        const d = Math.hypot(x - p.px, y - p.py);
+        const hit = Math.max(p.r + 20, 18);
+        if (d < hit && d < bestDist) { bestDist = d; best = p; }
+      });
+      return best;
+    }
+
+    function handleTap(x, y) {
+      const p = findPlanet(x, y);
+      if (p) showPanel(p);
+      else if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
+    }
+
+    function handleDoubleTap(x, y) {
+      const p = findPlanet(x, y);
+      if (!p) return;
+      const moons = MOON_DATA[p.body];
+      openZoom(p);
+    }
+
+    let clickTimer = null;
+    canvas.addEventListener('click', e => {
+      // Если второй клик дабл-клика — первый таймер уже сброшен dblclick-ом
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; }
+      const x = e.clientX, y = e.clientY;
+      clickTimer = setTimeout(() => { clickTimer = null; handleTap(x, y); }, 350);
+    });
+    canvas.addEventListener('dblclick', e => {
+      clearTimeout(clickTimer); clickTimer = null;
+      handleDoubleTap(e.clientX, e.clientY);
+    });
+
+    let lastTapInfo = { time: 0, x: 0, y: 0 };
+    let singleTapTimer = null;
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const now = Date.now();
+      const dx = Math.abs(t.clientX - lastTapInfo.x);
+      const dy = Math.abs(t.clientY - lastTapInfo.y);
+      if (now - lastTapInfo.time < 500 && dx < 35 && dy < 35) {
+        clearTimeout(singleTapTimer); singleTapTimer = null;
+        handleDoubleTap(t.clientX, t.clientY);
+        lastTapInfo = { time: 0, x: 0, y: 0 };
+      } else {
+        const tx = t.clientX, ty = t.clientY;
+        singleTapTimer = setTimeout(() => { singleTapTimer = null; handleTap(tx, ty); }, 600);
+        lastTapInfo = { time: now, x: t.clientX, y: t.clientY };
+      }
+    }, { passive: false });
+
+    // ── Zoom view ─────────────────────────────────────────────────────
+    const zoomView   = document.getElementById('zoom-view');
+    const zoomCanvas = document.getElementById('zoom-canvas');
+    const zctx       = zoomCanvas.getContext('2d');
+    let zoomPlanet = null;
+    let zoomRAF    = null;
+    let zoomMoonPos = [];
+    let currentPlanet = null;
+    let zoomTime = new Date();
+
+    // Image cache for planet photos
+    const _imgCache = {};
+    function getImg(url) {
+      if (!url) return null;
+      if (!_imgCache[url]) { const i = new Image(); i.src = url; _imgCache[url] = i; }
+      return _imgCache[url];
+    }
+    // Preload all planet images at startup
+    [...PLANETS, SUN].forEach(p => getImg(p.img));
+    let zoomLastTS = null;
+    const ZOOM_DAYS_PER_SEC = 0.1;
+
+    function openZoom(planet) {
+      zoomPlanet = planet;
+      panel.classList.remove('open');
+      panel.classList.remove('above-zoom');
+      document.getElementById('zoom-title').textContent  = planet.name;
+      document.getElementById('zoom-title').style.color  = planet.color;
+      document.getElementById('moon-info').classList.remove('open');
+      zoomTime = new Date(simTime.getTime());
+      zoomLastTS = null;
+      zoomView.classList.add('open');
+      // Size canvas using window dimensions (reliable across all browsers)
+      requestAnimationFrame(() => {
+        const canvasH = Math.max(100, zoomCanvas.offsetHeight || (window.innerHeight - 80));
+        zoomCanvas.width  = window.innerWidth;
+        zoomCanvas.height = canvasH;
+        if (zoomRAF) cancelAnimationFrame(zoomRAF);
+        zoomRAF = requestAnimationFrame(renderZoom);
+      });
+    }
+
+    function closeZoom() {
+      zoomView.classList.remove('open');
+      document.getElementById('moon-info').classList.remove('open');
+      panel.classList.remove('open');
+      panel.classList.remove('above-zoom');
+      if (zoomRAF) { cancelAnimationFrame(zoomRAF); zoomRAF = null; }
+    }
+
+    document.getElementById('zoom-close').addEventListener('click', closeZoom);
+    document.getElementById('zoom-back').addEventListener('click', closeZoom);
+    document.getElementById('zoom-btn').addEventListener('click', () => {
+      if (currentPlanet) openZoom(currentPlanet);
+    });
+
+    function renderZoom(ts) {
+      if (!zoomPlanet) return;
+      const zW = zoomCanvas.width, zH = zoomCanvas.height;
+      if (zW < 10 || zH < 10) { zoomRAF = requestAnimationFrame(renderZoom); return; }
+      if (zoomLastTS !== null) {
+        zoomTime = new Date(zoomTime.getTime() + ((ts - zoomLastTS) / 1000) * ZOOM_DAYS_PER_SEC * MS_PER_DAY);
+      }
+      zoomLastTS = ts;
+      const zcx = zW / 2, zcy = Math.round(zH * 0.42);
+
+      // Background
+      zctx.fillStyle = '#010614';
+      zctx.fillRect(0, 0, zW, zH);
+
+      // Dim stars
+      zctx.save();
+      STARS.forEach(s => {
+        const alpha = s.b * (0.25 + 0.15 * Math.sin(s.ph + ts * s.sp * 0.0008));
+        zctx.globalAlpha = Math.max(0.02, alpha);
+        zctx.fillStyle = '#fff';
+        zctx.beginPath();
+        zctx.arc(s.x * zW, s.y * zH, s.r * 0.7, 0, Math.PI * 2);
+        zctx.fill();
+      });
+      zctx.restore();
+
+      const moons   = MOON_DATA[zoomPlanet.body] || [];
+      const planetR = 44;
+      const availR  = Math.min(zcx, zcy - 16) * 0.88;
+      // For Saturn: moons must start outside the rings drawn in the PNG.
+      // Ring outer edge ≈ planetR / 0.38 (planet body = 38% of image width).
+      const ringsOuterR = zoomPlanet.hasRings ? Math.ceil(planetR / 0.38) + 10 : 0;
+      const minDisplayR = Math.max(Math.round(planetR * 1.9), ringsOuterR);
+      const rawOrbitRs = moons.map(m => m.orbitR);
+      const minRaw = Math.min(...rawOrbitRs);
+      const maxRaw = Math.max(...rawOrbitRs);
+      function moonDisplayR(orbitR) {
+        if (moons.length === 1 || maxRaw === minRaw) return (minDisplayR + availR) / 2;
+        return minDisplayR + (orbitR - minRaw) / (maxRaw - minRaw) * (availR - minDisplayR);
+      }
+
+      // Orbit rings
+      moons.forEach(moon => {
+        zctx.beginPath();
+        zctx.arc(zcx, zcy, moonDisplayR(moon.orbitR), 0, Math.PI * 2);
+        zctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        zctx.lineWidth = 0.5;
+        zctx.stroke();
+      });
+
+      // Glow halo — small circle + large blur so glow starts at planet edge
+      zctx.save();
+      zctx.shadowBlur = planetR * 1.1; zctx.shadowColor = zoomPlanet.color;
+      zctx.beginPath(); zctx.arc(zcx, zcy, planetR * 0.72, 0, Math.PI * 2);
+      zctx.fillStyle = zoomPlanet.color; zctx.fill();
+      zctx.restore();
+
+      // Planet photo
+      const pImg = getImg(zoomPlanet.zoomImg || zoomPlanet.img);
+      if (pImg && pImg.complete && pImg.naturalWidth > 0) {
+        zctx.save();
+        const sw = pImg.naturalWidth, sh = pImg.naturalHeight;
+
+        if (zoomPlanet.hasRings) {
+          // Saturn: transparent PNG with rings — draw full image, scale to planetR
+          const drawW = (planetR * 2) / 0.38;
+          const drawH = drawW * sh / sw;
+          zctx.drawImage(pImg, zcx - drawW / 2, zcy - drawH / 2, drawW, drawH);
+        } else if (zoomPlanet.zoomImg) {
+          // Transparent PNG — scale so min dimension = planetR*2, draw centered
+          const scale = (planetR * 2) / Math.min(sw, sh);
+          const drawW = sw * scale, drawH = sh * scale;
+          zctx.drawImage(pImg, zcx - drawW / 2, zcy - drawH / 2, drawW, drawH);
+        } else {
+          // Fallback (JPG): clip to circle, center-crop square
+          zctx.beginPath(); zctx.arc(zcx, zcy, planetR, 0, Math.PI * 2); zctx.clip();
+          const sq = Math.min(sw, sh);
+          zctx.drawImage(pImg, (sw - sq) / 2, (sh - sq) / 2, sq, sq,
+                         zcx - planetR, zcy - planetR, planetR * 2, planetR * 2);
+          // Soft sphere shading — highlight top-left, very subtle edge darkening
+          const grad = zctx.createRadialGradient(
+            zcx - planetR * 0.3, zcy - planetR * 0.3, 0, zcx, zcy, planetR);
+          grad.addColorStop(0,   'rgba(255,255,255,0.09)');
+          grad.addColorStop(0.55,'rgba(0,0,0,0)');
+          grad.addColorStop(1.0, 'rgba(0,0,0,0.18)'); // gentle edge, no black band
+          zctx.fillStyle = grad; zctx.fillRect(zcx - planetR, zcy - planetR, planetR * 2, planetR * 2);
+        }
+        zctx.restore();
+      }
+
+      zctx.font = '11px sans-serif';
+      zctx.fillStyle = 'rgba(255,255,255,0.35)';
+      zctx.textAlign = 'center';
+      zctx.fillText(zoomPlanet.name, zcx, zcy - planetR - 10);
+
+      // Moons
+      zoomMoonPos = [];
+      moons.forEach((moon, i) => {
+        let angle;
+        if (zoomPlanet.body === 'Earth') {
+          try {
+            const gm = Astronomy.GeoMoon(zoomTime);
+            const eps = 23.44 * Math.PI / 180;
+            const moonY = gm.y * Math.cos(eps) + gm.z * Math.sin(eps);
+            angle = Math.atan2(moonY, gm.x);
+          } catch(e) { angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2; }
+        } else if (zoomPlanet.body === 'Jupiter') {
+          try {
+            const jm = Astronomy.JupiterMoons(zoomTime);
+            const arr = [jm.io, jm.europa, jm.ganymede, jm.callisto];
+            angle = Math.atan2(arr[i].y, arr[i].x);
+          } catch(e) { angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2; }
+        } else {
+          angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2;
+        }
+
+        const or = moonDisplayR(moon.orbitR);
+        const mx = zcx + or * Math.cos(angle);
+        const my = zcy + or * Math.sin(angle);
+        const mr = 5;
+        zoomMoonPos.push({ ...moon, mx, my, mr });
+
+        zctx.shadowBlur = 8; zctx.shadowColor = moon.color;
+        zctx.beginPath();
+        zctx.arc(mx, my, mr, 0, Math.PI * 2);
+        zctx.fillStyle = moon.color; zctx.fill();
+        zctx.shadowBlur = 0; zctx.shadowColor = 'transparent';
+
+        zctx.font = '10px sans-serif';
+        zctx.fillStyle = 'rgba(255,255,255,0.6)';
+        zctx.textAlign = 'center';
+        const labelY = my >= zcy ? my + mr + 11 : my - mr - 5;
+        zctx.fillText(moon.name, mx, labelY);
+      });
+
+      document.getElementById('zoom-date-label').textContent = fmtDate(zoomTime);
+      zoomRAF = requestAnimationFrame(renderZoom);
+    }
+
+    // ── Moon tap in zoom canvas ───────────────────────────────────────
+    function handleZoomTap(clientX, clientY) {
+      const rect = zoomCanvas.getBoundingClientRect();
+      const x = clientX - rect.left, y = clientY - rect.top;
+
+      // Тап по планете в центре?
+      const zW = zoomCanvas.width, zH = zoomCanvas.height;
+      const zcx = zW / 2, zcy = Math.round(zH * 0.42);
+      if (Math.hypot(x - zcx, y - zcy) < 44 + 12) {
+        document.getElementById('moon-info').classList.remove('open');
+        const pData = planetPos.find(p => p.body === zoomPlanet.body) || zoomPlanet;
+        showPanel(pData);
+        panel.classList.add('above-zoom');
+        return;
+      }
+
+      let best = null, bestDist = Infinity;
+      zoomMoonPos.forEach(m => {
+        const d = Math.hypot(x - m.mx, y - m.my);
+        if (d < m.mr + 20 && d < bestDist) { bestDist = d; best = m; }
+      });
+      if (best) showMoonInfo(best);
+      else document.getElementById('moon-info').classList.remove('open');
+    }
+
+    zoomCanvas.addEventListener('click', e => handleZoomTap(e.clientX, e.clientY));
+    zoomCanvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      handleZoomTap(t.clientX, t.clientY);
+    }, { passive: false });
+
+    document.getElementById('moon-info-close').addEventListener('click', () => {
+      document.getElementById('moon-info').classList.remove('open');
+    });
+
+    function fmtKmRaw(km) {
+      return km >= 1e6 ? (km / 1e6).toFixed(2) + ' млн км' : km.toLocaleString('ru') + ' км';
+    }
+
+    function showMoonInfo(moon) {
+      document.getElementById('moon-info-name').textContent = moon.name;
+      document.getElementById('moon-info-name').style.color = moon.color;
+      document.getElementById('moon-info-img').src = moon.img || '';
+      document.getElementById('moon-info-sub').textContent  = `Спутник ${zoomPlanet.name}`;
+      document.getElementById('m-diam').textContent   = moon.diamKm.toLocaleString('ru') + ' км';
+      document.getElementById('m-dist').textContent   = fmtKmRaw(moon.distKm);
+      document.getElementById('m-period').textContent =
+        moon.periodDays >= 1
+          ? moon.periodDays.toFixed(2) + ' сут'
+          : (moon.periodDays * 24).toFixed(1) + ' ч';
+      renderFacts('moon-info-facts', moon.desc || '');
+      document.getElementById('moon-info').classList.add('open');
+    }
+
+    // ── Intro animation ───────────────────────────────────────────────
+    let introScale = 3.5;
+    const INTRO_DUR = 1400;
+    let introStart = null;
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+    // ── Go ────────────────────────────────────────────────────────────
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
