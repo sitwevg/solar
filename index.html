@@ -1247,6 +1247,7 @@
     }
 
     function closeZoom() {
+      simTime = new Date(zoomTime.getTime());
       zoomView.classList.remove('open');
       document.getElementById('moon-info').classList.remove('open');
       panel.classList.remove('open');
