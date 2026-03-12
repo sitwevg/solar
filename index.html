@@ -7,7 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- CommonJS-in-browser wrapper -->
   <script>var exports = {}; var module = { exports: exports };</script>
-  <script src="astronomy.js"></script>
+  <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -149,15 +149,13 @@
     }
     #zoom-view.open { transform: translateY(0); }
     #zoom-header {
-      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px;
       padding: 12px 16px 6px; flex-shrink: 0;
     }
     #zoom-back { justify-self: start; }
     #zoom-header-center {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      justify-self: center;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
     }
-    #zoom-close { justify-self: end; }
     #zoom-title { font-size: 18px; font-weight: 600; }
     #zoom-date-label {
       font-size: 11px; color: rgba(255,255,255,0.35);
@@ -173,12 +171,6 @@
       transition: background 0.15s;
     }
     #zoom-back:active { background: rgba(100,130,255,0.25); }
-    #zoom-close {
-      background: rgba(255,255,255,0.08); border: none; border-radius: 50%;
-      width: 32px; height: 32px; color: rgba(255,255,255,0.55);
-      font-size: 22px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
     #zoom-hint {
       text-align: center; font-size: 11px;
       color: rgba(255,255,255,0.25); padding-bottom: 4px; flex-shrink: 0;
@@ -297,7 +289,6 @@
         <div id="zoom-title"></div>
         <div id="zoom-date-label"></div>
       </div>
-      <button id="zoom-close">×</button>
     </div>
     <div id="zoom-hint">Нажмите на спутник для информации</div>
     <canvas id="zoom-canvas"></canvas>
@@ -348,6 +339,86 @@
     }
     resize();
     window.addEventListener('resize', resize);
+
+    // ── View transform (pan + pinch-zoom) ────────────────────────────
+    let viewScale = 1, viewOX = 0, viewOY = 0;
+    const VIEW_MIN = 0.4, VIEW_MAX = 6;
+
+    // Обратное преобразование: экранные координаты → мировые (canvas-space)
+    // offsetX = cx*(1-viewScale) + viewOX  →  x = (sx - offsetX) / viewScale
+    function screenToWorld(sx, sy) {
+      const offX = cx * (1 - viewScale) + viewOX;
+      const offY = cy * (1 - viewScale) + viewOY;
+      return { x: (sx - offX) / viewScale, y: (sy - offY) / viewScale };
+    }
+
+    // Touch state
+    let touches = {};         // id → {x, y}
+    let panStart = null;      // {ox, oy, x, y} for single-finger pan
+    let pinchStart = null;    // {dist, scale, ox, oy, mx, my}
+    let touchMoved = false;   // флаг: было ли движение (подавляет тап)
+
+    function touchDist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    function touchMid(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) touches[t.identifier] = { x: t.clientX, y: t.clientY };
+      const ids = Object.keys(touches);
+      touchMoved = false;
+      if (ids.length === 1) {
+        panStart = { ox: viewOX, oy: viewOY, x: touches[ids[0]].x, y: touches[ids[0]].y };
+        pinchStart = null;
+      } else if (ids.length === 2) {
+        const [a, b] = ids.map(i => touches[i]);
+        const mid = touchMid(a, b);
+        pinchStart = { dist: touchDist(a, b), scale: viewScale, ox: viewOX, oy: viewOY, mx: mid.x, my: mid.y };
+        panStart = null;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) touches[t.identifier] = { x: t.clientX, y: t.clientY };
+      const ids = Object.keys(touches);
+      if (ids.length === 1 && panStart) {
+        const cur = touches[ids[0]];
+        const dx = cur.x - panStart.x, dy = cur.y - panStart.y;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchMoved = true;
+        viewOX = panStart.ox + dx;
+        viewOY = panStart.oy + dy;
+      } else if (ids.length === 2 && pinchStart) {
+        touchMoved = true;
+        const [a, b] = ids.map(i => touches[i]);
+        const newDist = touchDist(a, b);
+        let newScale = pinchStart.scale * (newDist / pinchStart.dist);
+        newScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, newScale));
+        // Масштабируем относительно середины pinch
+        const ratio = newScale / pinchStart.scale;
+        viewOX = pinchStart.mx + ratio * (pinchStart.ox - pinchStart.mx);
+        viewOY = pinchStart.my + ratio * (pinchStart.oy - pinchStart.my);
+        viewScale = newScale;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) delete touches[t.identifier];
+      const ids = Object.keys(touches);
+      if (ids.length === 1) {
+        panStart = { ox: viewOX, oy: viewOY, x: touches[ids[0]].x, y: touches[ids[0]].y };
+        pinchStart = null;
+      } else if (ids.length === 0) {
+        if (!touchMoved) {
+          const t = e.changedTouches[0];
+          handleTap(screenToWorld(t.clientX, t.clientY));
+        }
+        panStart = null; pinchStart = null;
+      }
+    }, { passive: false });
 
     // ── Stars ─────────────────────────────────────────────────────────
     const STARS = Array.from({ length: 380 }, () => ({
@@ -726,7 +797,7 @@
         ctx.fillText(p.name, px, py - p.r - 6);
         ctx.font = '9px sans-serif';
         ctx.fillStyle = 'rgba(100,160,255,0.55)';
-        ctx.fillText('← вы здесь', px, py - p.r - 17);
+        ctx.fillText('вы здесь', px, py - p.r - 17);
       } else {
         ctx.font = '10px sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -750,9 +821,15 @@
         introScale = 1;
       }
       ctx.save();
-      if (introScale !== 1) {
-        ctx.setTransform(introScale, 0, 0, introScale, cx * (1 - introScale), cy * (1 - introScale));
-      }
+      // Применяем intro (если активно) поверх пользовательского zoom/pan
+      const totalScale = viewScale * (introElapsed < INTRO_DUR ? introScale : 1);
+      const introOX = introElapsed < INTRO_DUR ? cx * (1 - introScale) : 0;
+      const introOY = introElapsed < INTRO_DUR ? cy * (1 - introScale) : 0;
+      ctx.setTransform(
+        totalScale, 0, 0, totalScale,
+        cx * (1 - viewScale) + viewOX + introOX * viewScale,
+        cy * (1 - viewScale) + viewOY + introOY * viewScale
+      );
 
       // Background
       ctx.fillStyle = '#010614';
@@ -907,7 +984,7 @@
         document.getElementById('s-period-sub').textContent = 'ещё ~5 млрд до финала';
         document.getElementById('s-diam').textContent       = '5 778 К';
         document.getElementById('s-diam-sub').textContent   = 'ядро: ~15 млн К';
-        document.getElementById('s-speed').textContent      = '220 км/с';
+        document.getElementById('s-speed').textContent      = '220';
         document.getElementById('s-moons').textContent      = '8';
         document.getElementById('s-moons-sub').textContent  = '+ 5 карликовых';
       } else {
@@ -937,7 +1014,7 @@
         document.getElementById('s-diam').textContent       = p.diamKm.toLocaleString('ru') + ' км';
         document.getElementById('s-diam-sub').textContent   = p.isEarth
           ? 'наша планета' : `${(p.diamKm / 12742).toFixed(2)}× от Земли`;
-        document.getElementById('s-speed').textContent      = p.speedKms + ' км/с';
+        document.getElementById('s-speed').textContent      = p.speedKms;
         document.getElementById('s-moons').textContent      = p.moonCount;
         document.getElementById('s-moons-sub').textContent  = p.moonCountNote;
       }
@@ -961,48 +1038,17 @@
       return best;
     }
 
-    function handleTap(x, y) {
-      const p = findPlanet(x, y);
+    function handleTap(pos) {
+      const p = findPlanet(pos.x, pos.y);
       if (p) showPanel(p);
       else if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
     }
 
-    function handleDoubleTap(x, y) {
-      const p = findPlanet(x, y);
-      if (!p) return;
-      const moons = MOON_DATA[p.body];
-      openZoom(p);
-    }
-
-    let clickTimer = null;
-    canvas.addEventListener('click', e => {
-      // Если второй клик дабл-клика — первый таймер уже сброшен dblclick-ом
-      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; }
-      const x = e.clientX, y = e.clientY;
-      clickTimer = setTimeout(() => { clickTimer = null; handleTap(x, y); }, 350);
-    });
-    canvas.addEventListener('dblclick', e => {
-      clearTimeout(clickTimer); clickTimer = null;
-      handleDoubleTap(e.clientX, e.clientY);
-    });
-
-    let lastTapInfo = { time: 0, x: 0, y: 0 };
-    let singleTapTimer = null;
+    canvas.addEventListener('click', e => handleTap(screenToWorld(e.clientX, e.clientY)));
     canvas.addEventListener('touchend', e => {
       e.preventDefault();
       const t = e.changedTouches[0];
-      const now = Date.now();
-      const dx = Math.abs(t.clientX - lastTapInfo.x);
-      const dy = Math.abs(t.clientY - lastTapInfo.y);
-      if (now - lastTapInfo.time < 500 && dx < 35 && dy < 35) {
-        clearTimeout(singleTapTimer); singleTapTimer = null;
-        handleDoubleTap(t.clientX, t.clientY);
-        lastTapInfo = { time: 0, x: 0, y: 0 };
-      } else {
-        const tx = t.clientX, ty = t.clientY;
-        singleTapTimer = setTimeout(() => { singleTapTimer = null; handleTap(tx, ty); }, 600);
-        lastTapInfo = { time: now, x: t.clientX, y: t.clientY };
-      }
+      handleTap(t.clientX, t.clientY);
     }, { passive: false });
 
     // ── Zoom view ─────────────────────────────────────────────────────
@@ -1055,7 +1101,6 @@
       if (zoomRAF) { cancelAnimationFrame(zoomRAF); zoomRAF = null; }
     }
 
-    document.getElementById('zoom-close').addEventListener('click', closeZoom);
     document.getElementById('zoom-back').addEventListener('click', closeZoom);
     document.getElementById('zoom-btn').addEventListener('click', () => {
       if (currentPlanet) openZoom(currentPlanet);
@@ -1212,6 +1257,7 @@
         document.getElementById('moon-info').classList.remove('open');
         const pData = planetPos.find(p => p.body === zoomPlanet.body) || zoomPlanet;
         showPanel(pData);
+        document.getElementById('zoom-btn').style.display = 'none';
         panel.classList.add('above-zoom');
         return;
       }
