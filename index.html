@@ -411,8 +411,8 @@
                                Math.min(VIEW_MAX / pinchStart.scale, newDist / pinchStart.dist));
         viewScale = pinchStart.scale * ratio;
         // Зумируем строго в точку между пальцами
-        viewOX = pinchStart.ox + (pinchStart.mx - cx) * (1 - ratio);
-        viewOY = pinchStart.oy + (pinchStart.my - cy) * (1 - ratio);
+        viewOX = pinchStart.ox * ratio + (pinchStart.mx - cx) * (1 - ratio);
+        viewOY = pinchStart.oy * ratio + (pinchStart.my - cy) * (1 - ratio);
         clampView();
       }
     }, { passive: false });
@@ -1129,8 +1129,8 @@
         const ratio = Math.max(ZV_MIN/zPinchStart.scale, Math.min(ZV_MAX/zPinchStart.scale,
                                Math.hypot(a.x-b.x,a.y-b.y) / zPinchStart.dist));
         zVS = zPinchStart.scale * ratio;
-        zVOX = zPinchStart.ox + (zPinchStart.mx - zPinchStart.zcx) * (1 - ratio);
-        zVOY = zPinchStart.oy + (zPinchStart.my - zPinchStart.zcy) * (1 - ratio);
+        zVOX = zPinchStart.ox * ratio + (zPinchStart.mx - zPinchStart.zcx) * (1 - ratio);
+        zVOY = zPinchStart.oy * ratio + (zPinchStart.my - zPinchStart.zcy) * (1 - ratio);
         clampZV(zPinchStart.zcx, zPinchStart.zcy);
       }
     }, { passive: false });
