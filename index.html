@@ -608,7 +608,7 @@
     const PLANETS = [
       {
         name: 'Меркурий', body: 'Mercury', color: '#aaa8a0',
-        r: 2.5, sma: 0.387,
+        r: 2, sma: 0.387,
         prd: '88 суток', diamKm: 4879, prdDays: 88,
         speedKms: 47.4, moonCount: 0, moonCountNote: 'нет спутников',
         img: 'planets/mercury.jpg',
@@ -638,7 +638,7 @@
       },
       {
         name: 'Марс', body: 'Mars', color: '#c1440e',
-        r: 4, sma: 1.524,
+        r: 2.5, sma: 1.524,
         prd: '687 суток', diamKm: 6779, prdDays: 687,
         speedKms: 24.1, moonCount: 2, moonCountNote: 'Фобос, Деймос',
         img: 'planets/mars.jpg',
@@ -688,7 +688,7 @@
       },
       {
         name: 'Плутон', body: 'Pluto', color: '#b89080',
-        r: 2, sma: 39.48,
+        r: 1.5, sma: 39.48,
         prd: '248 лет', diamKm: 2376, prdDays: 90560,
         speedKms: 4.7, moonCount: 5, moonCountNote: 'Харон и 4 малых',
         img: 'planets/pluto.jpg',
@@ -792,10 +792,11 @@
       ctx.stroke();
     }
 
-    function drawMoon(px, py, angle, dr, color, r = 1.5) {
+    function drawMoon(px, py, angle, dr, color, r = 1.5, alpha = 0.72) {
+      if (alpha <= 0) return;
       ctx.beginPath();
       ctx.arc(px + dr * Math.cos(angle), py + dr * Math.sin(angle), r, 0, Math.PI * 2);
-      ctx.globalAlpha = 0.72;
+      ctx.globalAlpha = alpha;
       ctx.fillStyle = color;
       ctx.fill();
       ctx.globalAlpha = 1;
@@ -861,6 +862,7 @@
       try { earthVec = Astronomy.HelioVector(Astronomy.Body.Earth, simTime); } catch(e) {}
 
       planetPos = [];
+      const moonVis = Math.max(0, Math.min(1, (viewScale - 1.3) / 0.4));
 
       PLANETS.forEach(p => {
         let vec;
@@ -904,7 +906,7 @@
             const m = Astronomy.GeoMoon(simTime);
             const eps = 23.44 * Math.PI / 180;
             const my = m.y * Math.cos(eps) + m.z * Math.sin(eps);
-            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2);
+            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2, 0.72 * moonVis);
           } catch(e) {}
         }
 
@@ -918,7 +920,7 @@
               { m: jm.ganymede, color: '#9090a8', dr: p.r + 19 },
               { m: jm.callisto, color: '#707070', dr: p.r + 26 },
             ].forEach(({ m, color, dr }) =>
-              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5)
+              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5, 0.72 * moonVis)
             );
           } catch(e) {}
         }
@@ -930,7 +932,7 @@
             const d = simTime.getTime() / MS_PER_DAY;
             const minOff = p.hasRings ? Math.ceil(p.r * 2.5) : p.r + 6;
             moons.forEach((moon, i) => {
-              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5);
+              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5, 0.72 * moonVis);
             });
           }
         }
