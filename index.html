@@ -1055,11 +1055,6 @@
     }
 
     canvas.addEventListener('click', e => handleTap(screenToWorld(e.clientX, e.clientY)));
-    canvas.addEventListener('touchend', e => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      handleTap(t.clientX, t.clientY);
-    }, { passive: false });
 
     // ── Zoom view ─────────────────────────────────────────────────────
     const zoomView   = document.getElementById('zoom-view');
