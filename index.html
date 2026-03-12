@@ -876,12 +876,10 @@
       } else {
         introScale = 1;
       }
-      // Background + stars + meteors + comets — до трансформации (экранные координаты)
+      // Background + stars — до трансформации (фиксированный фон)
       ctx.fillStyle = '#010614';
       ctx.fillRect(0, 0, W, H);
       drawStars(ts);
-      drawMeteors(ts);
-      drawComets(ts);
 
       ctx.save();
       // Применяем intro (если активно) поверх пользовательского zoom/pan
@@ -893,6 +891,10 @@
         cx * (1 - viewScale) + viewOX + introOX * viewScale,
         cy * (1 - viewScale) + viewOY + introOY * viewScale
       );
+
+      // Кометы и метеоры — в мировых координатах (объекты в пространстве)
+      drawMeteors(ts);
+      drawComets(ts);
 
       // Orbit rings
       drawHeliopause();
