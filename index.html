@@ -349,8 +349,8 @@
 
     function clampView() {
       viewScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, viewScale));
-      // При viewScale<=1 сдвиг запрещён (система видна целиком)
-      if (viewScale <= 1) { viewOX = 0; viewOY = 0; return; }
+      // При малом зуме (вся система видна) сдвиг запрещён
+      if (viewScale <= 1 / ORBIT_SCALE) { viewOX = 0; viewOY = 0; return; }
       const limit = maxR * ORBIT_SCALE * viewScale;
       viewOX = Math.max(-limit, Math.min(limit, viewOX));
       viewOY = Math.max(-limit, Math.min(limit, viewOY));
