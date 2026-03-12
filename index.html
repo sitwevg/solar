@@ -1318,7 +1318,7 @@
         const or = moonDisplayR(moon.orbitR);
         const mx = zcx + or * Math.cos(angle);
         const my = zcy + or * Math.sin(angle);
-        const mr = 5;
+        const mr = Math.max(5, Math.round(planetR * moon.diamKm / zoomPlanet.diamKm));
         zoomMoonPos.push({ ...moon, mx, my, mr });
 
         zctx.shadowBlur = 8; zctx.shadowColor = moon.color;
