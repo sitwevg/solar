@@ -149,12 +149,13 @@
     }
     #zoom-view.open { transform: translateY(0); }
     #zoom-header {
-      display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       padding: 12px 16px 6px; flex-shrink: 0;
     }
     #zoom-back { justify-self: start; }
     #zoom-header-center {
-      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      justify-self: center;
     }
     #zoom-title { font-size: 18px; font-weight: 600; }
     #zoom-date-label {
@@ -289,6 +290,7 @@
         <div id="zoom-title"></div>
         <div id="zoom-date-label"></div>
       </div>
+      <div></div>
     </div>
     <div id="zoom-hint">Нажмите на спутник для информации</div>
     <canvas id="zoom-canvas"></canvas>
@@ -1066,6 +1068,83 @@
     let currentPlanet = null;
     let zoomTime = new Date();
 
+    // ── Zoom-view pan/pinch ───────────────────────────────────────────
+    let zVS = 1, zVOX = 0, zVOY = 0;
+    const ZV_MIN = 1, ZV_MAX = 6;
+    let zTouches = {}, zPanStart = null, zPinchStart = null, zTouchMoved = false;
+
+    function clampZV(zcx, zcy) {
+      zVS = Math.max(ZV_MIN, Math.min(ZV_MAX, zVS));
+      if (zVS <= 1) { zVOX = 0; zVOY = 0; return; }
+      const limit = 220 * (zVS - 1);
+      zVOX = Math.max(-limit, Math.min(limit, zVOX));
+      zVOY = Math.max(-limit, Math.min(limit, zVOY));
+    }
+
+    function zSW(sx, sy, zcx, zcy) { // screen → world for zoom canvas
+      return { x: (sx - zcx*(1-zVS) - zVOX) / zVS,
+               y: (sy - zcy*(1-zVS) - zVOY) / zVS };
+    }
+
+    zoomCanvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) zTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+      const ids = Object.keys(zTouches);
+      zTouchMoved = false;
+      const rect = zoomCanvas.getBoundingClientRect();
+      if (ids.length === 1) {
+        zPanStart = { ox: zVOX, oy: zVOY, x: zTouches[ids[0]].x, y: zTouches[ids[0]].y };
+        zPinchStart = null;
+      } else if (ids.length === 2) {
+        const [a, b] = ids.map(i => zTouches[i]);
+        const zW = zoomCanvas.width, zH = zoomCanvas.height;
+        const zcx = zW/2, zcy = Math.round(zH*0.42);
+        const mx = (a.x+b.x)/2 - rect.left, my = (a.y+b.y)/2 - rect.top;
+        zPinchStart = { dist: Math.hypot(a.x-b.x,a.y-b.y), scale: zVS, ox: zVOX, oy: zVOY, mx, my, zcx, zcy };
+        zPanStart = null;
+      }
+    }, { passive: false });
+
+    zoomCanvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) zTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+      const ids = Object.keys(zTouches);
+      const zW = zoomCanvas.width, zH = zoomCanvas.height;
+      const zcx = zW/2, zcy = Math.round(zH*0.42);
+      if (ids.length === 1 && zPanStart) {
+        const cur = zTouches[ids[0]];
+        const dx = cur.x - zPanStart.x, dy = cur.y - zPanStart.y;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) zTouchMoved = true;
+        zVOX = zPanStart.ox + dx; zVOY = zPanStart.oy + dy;
+        clampZV(zcx, zcy);
+      } else if (ids.length === 2 && zPinchStart) {
+        zTouchMoved = true;
+        const [a, b] = ids.map(i => zTouches[i]);
+        const ratio = Math.max(ZV_MIN/zPinchStart.scale, Math.min(ZV_MAX/zPinchStart.scale,
+                               Math.hypot(a.x-b.x,a.y-b.y) / zPinchStart.dist));
+        zVS = zPinchStart.scale * ratio;
+        zVOX = zPinchStart.ox + (zPinchStart.mx - zPinchStart.zcx) * (1 - ratio);
+        zVOY = zPinchStart.oy + (zPinchStart.my - zPinchStart.zcy) * (1 - ratio);
+        clampZV(zPinchStart.zcx, zPinchStart.zcy);
+      }
+    }, { passive: false });
+
+    zoomCanvas.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) delete zTouches[t.identifier];
+      const ids = Object.keys(zTouches);
+      if (ids.length === 1) {
+        zPanStart = { ox: zVOX, oy: zVOY, x: zTouches[ids[0]].x, y: zTouches[ids[0]].y };
+        zPinchStart = null;
+      } else if (ids.length === 0) {
+        if (!zTouchMoved) {
+          const t = e.changedTouches[0];
+          const rect = zoomCanvas.getBoundingClientRect();
+          handleZoomTap(t.clientX - rect.left, t.clientY - rect.top);
+        }
+        zPanStart = null; zPinchStart = null;
+      }
+    }, { passive: false });
+
     // Image cache for planet photos
     const _imgCache = {};
     function getImg(url) {
@@ -1079,6 +1158,7 @@
     const ZOOM_DAYS_PER_SEC = 0.1;
 
     function openZoom(planet) {
+      zVS = 1; zVOX = 0; zVOY = 0; zTouches = {};
       zoomPlanet = planet;
       panel.classList.remove('open');
       panel.classList.remove('above-zoom');
@@ -1121,11 +1201,9 @@
       zoomLastTS = ts;
       const zcx = zW / 2, zcy = Math.round(zH * 0.42);
 
-      // Background
+      // Background + stars — до трансформации (фон фиксированный)
       zctx.fillStyle = '#010614';
       zctx.fillRect(0, 0, zW, zH);
-
-      // Dim stars
       zctx.save();
       STARS.forEach(s => {
         const alpha = s.b * (0.25 + 0.15 * Math.sin(s.ph + ts * s.sp * 0.0008));
@@ -1136,6 +1214,10 @@
         zctx.fill();
       });
       zctx.restore();
+
+      // Применяем zoom/pan трансформацию для планеты и лун
+      zctx.save();
+      zctx.setTransform(zVS, 0, 0, zVS, zcx*(1-zVS)+zVOX, zcy*(1-zVS)+zVOY);
 
       const moons   = MOON_DATA[zoomPlanet.body] || [];
       const planetR = 44;
@@ -1246,19 +1328,21 @@
         zctx.fillText(moon.name, mx, labelY);
       });
 
+      zctx.restore(); // конец zoom/pan трансформации
+
       document.getElementById('zoom-date-label').textContent = fmtDate(zoomTime);
       zoomRAF = requestAnimationFrame(renderZoom);
     }
 
     // ── Moon tap in zoom canvas ───────────────────────────────────────
-    function handleZoomTap(clientX, clientY) {
-      const rect = zoomCanvas.getBoundingClientRect();
-      const x = clientX - rect.left, y = clientY - rect.top;
-
-      // Тап по планете в центре?
+    // canvasX/canvasY — уже в canvas-пикселях (без rect.left)
+    function handleZoomTap(canvasX, canvasY) {
       const zW = zoomCanvas.width, zH = zoomCanvas.height;
       const zcx = zW / 2, zcy = Math.round(zH * 0.42);
-      if (Math.hypot(x - zcx, y - zcy) < 44 + 12) {
+      // Обратное преобразование zoom/pan → world координаты
+      const { x, y } = zSW(canvasX, canvasY, zcx, zcy);
+
+      if (Math.hypot(x - zcx, y - zcy) < (44 + 12) * Math.max(1, 1/zVS)) {
         document.getElementById('moon-info').classList.remove('open');
         const pData = planetPos.find(p => p.body === zoomPlanet.body) || zoomPlanet;
         showPanel(pData);
@@ -1270,18 +1354,16 @@
       let best = null, bestDist = Infinity;
       zoomMoonPos.forEach(m => {
         const d = Math.hypot(x - m.mx, y - m.my);
-        if (d < m.mr + 20 && d < bestDist) { bestDist = d; best = m; }
+        if (d < (m.mr + 20) * Math.max(1, 1/zVS) && d < bestDist) { bestDist = d; best = m; }
       });
       if (best) showMoonInfo(best);
       else document.getElementById('moon-info').classList.remove('open');
     }
 
-    zoomCanvas.addEventListener('click', e => handleZoomTap(e.clientX, e.clientY));
-    zoomCanvas.addEventListener('touchend', e => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      handleZoomTap(t.clientX, t.clientY);
-    }, { passive: false });
+    zoomCanvas.addEventListener('click', e => {
+      const rect = zoomCanvas.getBoundingClientRect();
+      handleZoomTap(e.clientX - rect.left, e.clientY - rect.top);
+    });
 
     document.getElementById('moon-info-close').addEventListener('click', () => {
       document.getElementById('moon-info').classList.remove('open');
