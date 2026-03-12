@@ -342,7 +342,16 @@
 
     // ── View transform (pan + pinch-zoom) ────────────────────────────
     let viewScale = 1, viewOX = 0, viewOY = 0;
-    const VIEW_MIN = 0.4, VIEW_MAX = 6;
+    const VIEW_MIN = 1, VIEW_MAX = 6;
+
+    function clampView() {
+      viewScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, viewScale));
+      // При viewScale=1 сдвиг запрещён
+      if (viewScale <= 1) { viewOX = 0; viewOY = 0; return; }
+      const limit = maxR * (viewScale - 1);
+      viewOX = Math.max(-limit, Math.min(limit, viewOX));
+      viewOY = Math.max(-limit, Math.min(limit, viewOY));
+    }
 
     // Обратное преобразование: экранные координаты → мировые (canvas-space)
     // offsetX = cx*(1-viewScale) + viewOX  →  x = (sx - offsetX) / viewScale
@@ -391,17 +400,18 @@
         if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchMoved = true;
         viewOX = panStart.ox + dx;
         viewOY = panStart.oy + dy;
+        clampView();
       } else if (ids.length === 2 && pinchStart) {
         touchMoved = true;
         const [a, b] = ids.map(i => touches[i]);
         const newDist = touchDist(a, b);
-        let newScale = pinchStart.scale * (newDist / pinchStart.dist);
-        newScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, newScale));
-        // Масштабируем относительно середины pinch
-        const ratio = newScale / pinchStart.scale;
-        viewOX = pinchStart.mx + ratio * (pinchStart.ox - pinchStart.mx);
-        viewOY = pinchStart.my + ratio * (pinchStart.oy - pinchStart.my);
-        viewScale = newScale;
+        const ratio = Math.max(VIEW_MIN / pinchStart.scale,
+                               Math.min(VIEW_MAX / pinchStart.scale, newDist / pinchStart.dist));
+        viewScale = pinchStart.scale * ratio;
+        // Зумируем строго в точку между пальцами
+        viewOX = pinchStart.ox + (pinchStart.mx - cx) * (1 - ratio);
+        viewOY = pinchStart.oy + (pinchStart.my - cy) * (1 - ratio);
+        clampView();
       }
     }, { passive: false });
 
@@ -820,6 +830,10 @@
       } else {
         introScale = 1;
       }
+      // Background — до трансформации, чтобы всегда покрывал весь экран
+      ctx.fillStyle = '#010614';
+      ctx.fillRect(0, 0, W, H);
+
       ctx.save();
       // Применяем intro (если активно) поверх пользовательского zoom/pan
       const totalScale = viewScale * (introElapsed < INTRO_DUR ? introScale : 1);
@@ -830,10 +844,6 @@
         cx * (1 - viewScale) + viewOX + introOX * viewScale,
         cy * (1 - viewScale) + viewOY + introOY * viewScale
       );
-
-      // Background
-      ctx.fillStyle = '#010614';
-      ctx.fillRect(0, 0, W, H);
 
       drawStars(ts);
       drawMeteors(ts);
