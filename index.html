@@ -1117,6 +1117,13 @@
       else if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
     }
 
+    // ── Keyboard ─────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (zoomView.classList.contains('open')) closeZoom();
+      else { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
+    });
+
     // ── Mouse (главный канвас) ────────────────────────────────────────
     let mousePanStart = null, mouseMoved = false;
     canvas.addEventListener('mousedown', e => {
