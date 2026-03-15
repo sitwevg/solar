@@ -1117,7 +1117,39 @@
       else if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
     }
 
-    canvas.addEventListener('click', e => handleTap(screenToWorld(e.clientX, e.clientY)));
+    // ── Mouse (главный канвас) ────────────────────────────────────────
+    let mousePanStart = null, mouseMoved = false;
+    canvas.addEventListener('mousedown', e => {
+      mousePanStart = { ox: viewOX, oy: viewOY, x: e.clientX, y: e.clientY };
+      mouseMoved = false;
+      canvas.style.cursor = 'grabbing';
+    });
+    canvas.addEventListener('mousemove', e => {
+      if (!mousePanStart) return;
+      const dx = e.clientX - mousePanStart.x, dy = e.clientY - mousePanStart.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) mouseMoved = true;
+      viewOX = mousePanStart.ox + dx;
+      viewOY = mousePanStart.oy + dy;
+      clampView();
+    });
+    canvas.addEventListener('mouseup', e => {
+      if (!mouseMoved) handleTap(screenToWorld(e.clientX, e.clientY));
+      mousePanStart = null;
+      canvas.style.cursor = 'grab';
+    });
+    canvas.addEventListener('mouseleave', () => { mousePanStart = null; canvas.style.cursor = 'grab'; });
+    canvas.style.cursor = 'grab';
+
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const newScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, viewScale * factor));
+      const ratio = newScale / viewScale;
+      viewOX = viewOX * ratio + (e.clientX - cx) * (1 - ratio);
+      viewOY = viewOY * ratio + (e.clientY - cy) * (1 - ratio);
+      viewScale = newScale;
+      clampView();
+    }, { passive: false });
 
     // ── Zoom view ─────────────────────────────────────────────────────
     const zoomView   = document.getElementById('zoom-view');
@@ -1438,10 +1470,46 @@
       }
     }
 
-    zoomCanvas.addEventListener('click', e => {
-      const rect = zoomCanvas.getBoundingClientRect();
-      handleZoomTap(e.clientX - rect.left, e.clientY - rect.top);
+    // ── Mouse (zoom-канвас) ───────────────────────────────────────────
+    let zMousePanStart = null, zMouseMoved = false;
+    zoomCanvas.addEventListener('mousedown', e => {
+      zMousePanStart = { ox: zVOX, oy: zVOY, x: e.clientX, y: e.clientY };
+      zMouseMoved = false;
+      zoomCanvas.style.cursor = 'grabbing';
     });
+    zoomCanvas.addEventListener('mousemove', e => {
+      if (!zMousePanStart) return;
+      const dx = e.clientX - zMousePanStart.x, dy = e.clientY - zMousePanStart.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) zMouseMoved = true;
+      const zW = zoomCanvas.width, zH = zoomCanvas.height;
+      zVOX = zMousePanStart.ox + dx; zVOY = zMousePanStart.oy + dy;
+      clampZV(zW/2, Math.round(zH*0.42));
+    });
+    zoomCanvas.addEventListener('mouseup', e => {
+      if (!zMouseMoved) {
+        const rect = zoomCanvas.getBoundingClientRect();
+        handleZoomTap(e.clientX - rect.left, e.clientY - rect.top);
+      }
+      zMousePanStart = null;
+      zoomCanvas.style.cursor = 'grab';
+    });
+    zoomCanvas.addEventListener('mouseleave', () => { zMousePanStart = null; zoomCanvas.style.cursor = 'grab'; });
+    zoomCanvas.style.cursor = 'grab';
+
+    zoomCanvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const zW = zoomCanvas.width, zH = zoomCanvas.height;
+      const zcx = zW/2, zcy = Math.round(zH*0.42);
+      const rect = zoomCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const newVS = Math.max(ZV_MIN, Math.min(ZV_MAX, zVS * factor));
+      const ratio = newVS / zVS;
+      zVOX = zVOX * ratio + (mx - zcx) * (1 - ratio);
+      zVOY = zVOY * ratio + (my - zcy) * (1 - ratio);
+      zVS = newVS;
+      clampZV(zcx, zcy);
+    }, { passive: false });
 
     document.getElementById('moon-info-close').addEventListener('click', () => {
       document.getElementById('moon-info').classList.remove('open');
