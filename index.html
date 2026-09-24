@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.2"></script>
+  <script src="src/core/space-projection.js?v=0.2.3"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -1603,13 +1603,30 @@
     });
 
     // ── Mouse (главный канвас) ────────────────────────────────────────
-    let mousePanStart = null, mouseMoved = false;
+    let mousePanStart = null, mouseTiltStart = null, mouseMoved = false;
     canvas.addEventListener('mousedown', e => {
+      if (e.button === 1) {
+        e.preventDefault();
+        if (projectionMode === SolarSpaceProjection.MODE_VOLUME) {
+          mouseTiltStart = { tilt: projectionTilt, y: e.clientY };
+          canvas.style.cursor = 'ns-resize';
+        }
+        return;
+      }
+      if (e.button !== 0) return;
       mousePanStart = { ox: viewOX, oy: viewOY, x: e.clientX, y: e.clientY };
       mouseMoved = false;
       canvas.style.cursor = 'grabbing';
     });
     canvas.addEventListener('mousemove', e => {
+      if (mouseTiltStart) {
+        setProjectionTilt(SolarSpaceProjection.tiltFromVerticalDrag(
+          mouseTiltStart.tilt,
+          mouseTiltStart.y,
+          e.clientY
+        ));
+        return;
+      }
       if (!mousePanStart) {
         const pos = screenToWorld(e.clientX, e.clientY);
         const featureHit = findFeatureLabel(pos.x, pos.y);
@@ -1624,11 +1641,25 @@
       clampView();
     });
     canvas.addEventListener('mouseup', e => {
+      if (e.button === 1) {
+        mouseTiltStart = null;
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      if (e.button !== 0 || !mousePanStart) return;
       if (!mouseMoved) handleTap(screenToWorld(e.clientX, e.clientY));
       mousePanStart = null;
       canvas.style.cursor = 'grab';
     });
-    canvas.addEventListener('mouseleave', () => { mousePanStart = null; hoveredFeature = null; canvas.style.cursor = 'grab'; });
+    canvas.addEventListener('mouseleave', () => {
+      mousePanStart = null;
+      mouseTiltStart = null;
+      hoveredFeature = null;
+      canvas.style.cursor = 'grab';
+    });
+    canvas.addEventListener('auxclick', e => {
+      if (e.button === 1) e.preventDefault();
+    });
     canvas.style.cursor = 'grab';
 
     canvas.addEventListener('wheel', e => {

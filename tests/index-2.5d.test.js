@@ -31,6 +31,15 @@ test('режим 3D имеет доступные кнопки переключ�
     assert.match(html, /viewModeBtn\.textContent = volume \? '3D' : '2D'/);
 });
 
+test('мышь разделяет панорамирование, наклон и масштабирование', () => {
+    assert.match(html, /if \(e\.button === 1\)/);
+    assert.match(html, /mouseTiltStart = \{ tilt: projectionTilt, y: e\.clientY \}/);
+    assert.match(html, /SolarSpaceProjection\.tiltFromVerticalDrag/);
+    assert.match(html, /if \(e\.button !== 0\) return/);
+    assert.match(html, /canvas\.addEventListener\('wheel'/);
+    assert.match(html, /viewScale \* factor/);
+});
+
 test('вид сверху остаётся режимом по умолчанию, а 3D использует эклиптическую Z-координату', () => {
     assert.match(html, /projectionMode = SolarSpaceProjection\.MODE_TOP/);
     assert.match(html, /Astronomy\.Rotation_EQJ_ECL\(\)/);

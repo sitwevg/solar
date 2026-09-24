@@ -33,6 +33,14 @@ test('наклон камеры ограничен безопасным диап
     assert.equal(projection.clampTilt(-100), projection.MIN_TILT);
     assert.equal(projection.clampTilt(100), projection.MAX_TILT);
     assert.equal(projection.clampTilt('bad'), projection.DEFAULT_TILT);
+    assert.equal(projection.MAX_TILT, 85);
+});
+
+test('вертикальное движение со средней кнопкой меняет угол и соблюдает границы', () => {
+    assert.equal(projection.tiltFromVerticalDrag(42, 300, 270), 52);
+    assert.equal(projection.tiltFromVerticalDrag(42, 300, 330), 32);
+    assert.equal(projection.tiltFromVerticalDrag(80, 300, 0), projection.MAX_TILT);
+    assert.equal(projection.tiltFromVerticalDrag(25, 300, 600), projection.MIN_TILT);
 });
 
 test('наклонённая орбита Плутона содержит ненулевую координату Z', () => {

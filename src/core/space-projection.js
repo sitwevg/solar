@@ -19,8 +19,9 @@
     const MODE_TOP = 'top';
     const MODE_VOLUME = 'volume';
     const MIN_TILT = 20;
-    const MAX_TILT = 70;
+    const MAX_TILT = 85;
     const DEFAULT_TILT = 42;
+    const TILT_DRAG_PIXELS_PER_DEGREE = 3;
     const SCALE_INNER_EDGE_AU = 10;
     const SCALE_KUIPER_EDGE_AU = 55;
     const SCALE_HELIOPAUSE_AU = 120;
@@ -33,6 +34,15 @@
 
     function normalizeMode(mode) {
         return mode === MODE_VOLUME ? MODE_VOLUME : MODE_TOP;
+    }
+
+    function tiltFromVerticalDrag(startTilt, startY, currentY) {
+        const origin = Number(startY);
+        const current = Number(currentY);
+        if (!Number.isFinite(origin) || !Number.isFinite(current)) return clampTilt(startTilt);
+        return clampTilt(
+            Number(startTilt) + (origin - current) / TILT_DRAG_PIXELS_PER_DEGREE
+        );
     }
 
     function solarDistanceToPixels(distanceAu, maximumRadius) {
@@ -135,11 +145,13 @@
         MIN_TILT,
         MAX_TILT,
         DEFAULT_TILT,
+        TILT_DRAG_PIXELS_PER_DEGREE,
         SCALE_INNER_EDGE_AU,
         SCALE_KUIPER_EDGE_AU,
         SCALE_HELIOPAUSE_AU,
         clampTilt,
         normalizeMode,
+        tiltFromVerticalDrag,
         solarDistanceToPixels,
         projectPoint,
         orbitPoint,
