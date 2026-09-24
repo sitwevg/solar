@@ -63,11 +63,21 @@ test('карта использует гибридную шкалу до реа�
 
 test('семантический зум удерживает маркеры и подписи в читаемом размере', () => {
     assert.match(html, /function mapUiScale\(detailMultiplier = 1\)/);
-    assert.match(html, /const visualR = p\.r \* planetUiScale/);
-    assert.match(html, /drawLabel\(px, py, p, labelUiScale\)/);
+    assert.match(html, /const primaryMarkerRadius = Math\.max\(p\.r, 2\)/);
+    assert.match(html, /const visualR = primaryMarkerRadius \* planetUiScale/);
+    assert.match(html, /drawLabel\(px, py, p, labelUiScale, primaryMarkerRadius\)/);
     assert.match(html, /function satelliteOrbitScale\(\)/);
     assert.match(html, /drawMoon\([^;]+moonOrbitScale[^;]+moonUiScale\)/s);
     assert.match(html, /wheelZoomFactor\(e\.deltaY, e\.deltaMode, window\.innerHeight\)/);
+});
+
+test('карточки разделяют пояс Койпера и более далёкие области', () => {
+    assert.match(html, /name: 'Пояс Койпера \(30–55 а\.е\.\)'/);
+    assert.match(html, /distantRegions: \{/);
+    assert.match(html, /'За гелиопаузой: дальние области →'/);
+    assert.match(html, /const uiScale = 1 \/ Math\.max\(0\.01, viewScale\)/);
+    assert.match(html, /облаком Хиллса/);
+    assert.doesNotMatch(html, /Пояс Койпера[^]*?продолжается почти до 1 000 а\.е\./);
 });
 
 test('объём пояса Койпера включает наклонённую орбиту Плутона', () => {

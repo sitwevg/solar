@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.5"></script>
+  <script src="src/core/space-projection.js?v=0.2.6"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -1067,19 +1067,19 @@
 
     const FEATURE_INFO = {
       kuiper: {
-        name: 'Пояс Койпера',
+        name: 'Пояс Койпера (30–55 а.е.)',
         type: 'Область ледяных тел за орбитой Нептуна',
         color: '#b4d2ff',
         isFeature: true,
         stats: [
           { label: 'Начало', value: '≈30 а.е.', sub: 'у орбиты Нептуна' },
-          { label: 'Основная часть', value: 'до ≈55 а.е.', sub: 'дальше — рассеянный диск' },
-          { label: 'Известно объектов', value: '> 2 000', sub: 'и это лишь малая часть' },
-          { label: 'Крупнее 100 км', value: 'Сотни тысяч', sub: 'по оценке астрономов' },
-          { label: 'Самый известный', value: 'Плутон', sub: 'карликовая планета' },
+          { label: 'Основная область', value: 'до ≈55 а.е.', sub: 'широкий ледяной диск' },
+          { label: 'Классический пояс', value: '≈39–48 а.е.', sub: 'относительно устойчивые орбиты' },
+          { label: 'Плутино', value: 'Резонанс 3:2', sub: 'два оборота за три оборота Нептуна' },
+          { label: 'Плутоиды', value: 'Плутон и другие', sub: 'карликовые планеты за Нептуном' },
           { label: 'Возраст', value: '≈4,6 млрд лет', sub: 'остатки рождения системы' },
         ],
-        desc: 'Пояс Койпера — не тонкое кольцо, а огромная область в форме толстого диска, заполненная ледяными остатками рождения Солнечной системы. Его основная часть начинается у орбиты Нептуна примерно в 30 а.е. от Солнца и заканчивается около 55 а.е., но рассеянный диск продолжается почти до 1 000 а.е. Плутон — лишь самый знаменитый житель этой области. А ещё «холодные» и «горячие» группы объектов названы вовсе не по температуре: эти слова описывают спокойные или сильнее наклонённые и вытянутые орбиты.'
+        desc: 'Пояс Койпера — не тонкое кольцо, а широкая область ледяных остатков рождения Солнечной системы. Его основная часть начинается у орбиты Нептуна примерно в 30 а.е. и заканчивается около 55 а.е. Плутон находится с Нептуном в орбитальном резонансе 3:2 и относится к плутино. Одновременно он плутоид — карликовая планета, обращающаяся за орбитой Нептуна. «Холодные» и «горячие» группы названы не по температуре: так различают более спокойные и более наклонённые, вытянутые орбиты. Рассеянный диск и ещё более далёкие области вынесены в отдельную карточку, чтобы не принимать их за продолжение самого пояса.'
       },
       heliopause: {
         name: 'Гелиопауза',
@@ -1094,7 +1094,22 @@
           { label: 'Форма', value: 'Меняется', sub: 'это не идеальная сфера' },
           { label: 'За границей', value: 'Межзвёздная среда', sub: 'но не конец Солнечной системы' },
         ],
-        desc: 'Гелиопауза — граница гигантского пузыря, который солнечный ветер выдувает в межзвёздной среде. Она находится там, где давление частиц от Солнца уравновешивается давлением вещества между звёздами, поэтому её форма и расстояние меняются. Voyager 1 и Voyager 2 пересекли эту границу на разных расстояниях. Сам переход нельзя увидеть глазами: его распознали по резкому уменьшению солнечных частиц и росту космических лучей. И важная деталь — выйти за гелиопаузу не значит покинуть Солнечную систему: притяжение Солнца действует намного дальше.'
+        desc: 'Гелиопауза — граница гигантского пузыря, который солнечный ветер выдувает в межзвёздной среде. Она находится там, где давление частиц от Солнца уравновешивается давлением вещества между звёздами, поэтому её форма и расстояние меняются. Voyager 1 и Voyager 2 пересекли эту границу на разных расстояниях. Сам переход нельзя увидеть глазами: его распознали по резкому уменьшению солнечных частиц и росту космических лучей. И важная деталь — выйти за гелиопаузу не значит покинуть Солнечную систему: это граница солнечного ветра, а не притяжения Солнца.',
+      },
+      distantRegions: {
+        name: 'Дальние области Солнечной системы',
+        type: 'Рассеянный диск, отделённые объекты и облако Оорта',
+        color: '#c7d7ff',
+        isFeature: true,
+        stats: [
+          { label: 'Рассеянный диск', value: '≈50–1 000 а.е.', sub: 'вытянутые орбиты, связанные с Нептуном' },
+          { label: 'Седна', value: '≈76–937 а.е.', sub: 'не подходит близко к Нептуну' },
+          { label: 'Отделённые объекты', value: 'Очень далёкие', sub: 'происхождение орбит ещё обсуждается' },
+          { label: 'Внутреннее облако', value: 'Гипотеза', sub: 'его также называют облаком Хиллса' },
+          { label: 'Облако Оорта', value: '≈2 000–100 000 а.е.', sub: 'предполагаемый сферический резервуар комет' },
+          { label: '100 000 а.е.', value: '≈1,6 св. года', sub: 'внешняя граница лишь оценочная' },
+        ],
+        desc: 'За основной областью пояса Койпера начинается более сложная и пока не полностью изученная территория. Рассеянный диск перекрывается с внешним краем пояса, но его тела уходят по сильно вытянутым и наклонённым орбитам почти до 1 000 а.е. Ещё дальше выделяют отделённые объекты: их орбиты почти не испытывают прямого влияния Нептуна. Седна — один из самых известных примеров; такие далёкие тела иногда называют седноидами. Возможным переходом к облаку Оорта считают гипотетическое внутреннее облако, или облако Хиллса. Само облако Оорта, вероятно, начинается в тысячах а.е. и тянется примерно до 100 000 а.е. — около 1,6 светового года. Там влияние Солнца постепенно уступает возмущениям Галактики и соседних звёзд. На карте эта область показана только информационной подписью и не нарисована в масштабе.'
       }
     };
 
@@ -1102,24 +1117,29 @@
     let hoveredFeature = null;
 
     function drawFeatureLabel(text, x, y, font, color, feature) {
+      const uiScale = 1 / Math.max(0.01, viewScale);
+      ctx.save();
       ctx.font = font;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       const width = ctx.measureText(text).width;
-      featureLabelHits.push({ x, y, width, height: 12, feature });
+      featureLabelHits.push({ x, y, width: width * uiScale, height: 12 * uiScale, feature });
+      ctx.translate(x, y);
+      ctx.scale(uiScale, uiScale);
 
       const hovered = hoveredFeature === feature;
       ctx.fillStyle = hovered ? '#ffffff' : color;
-      ctx.fillText(text, x, y);
+      ctx.fillText(text, 0, 0);
 
       if (hovered) {
         ctx.beginPath();
-        ctx.moveTo(x - width / 2, y + 2);
-        ctx.lineTo(x + width / 2, y + 2);
+        ctx.moveTo(-width / 2, 2);
+        ctx.lineTo(width / 2, 2);
         ctx.strokeStyle = 'rgba(150, 205, 255, 0.9)';
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
+      ctx.restore();
     }
 
     function drawKuiper(ts) {
@@ -1192,6 +1212,11 @@
         'Гелиопауза ~120 а.е.', labelPoint.x, labelPoint.y - 6,
         '10px sans-serif', 'rgba(210, 230, 255, 0.68)', FEATURE_INFO.heliopause
       );
+      const topSafeY = screenToWorld(0, 34).y;
+      drawFeatureLabel(
+        'За гелиопаузой: дальние области →', labelPoint.x, Math.max(labelPoint.y - 32 / viewScale, topSafeY),
+        '10px sans-serif', 'rgba(199, 215, 255, 0.78)', FEATURE_INFO.distantRegions
+      );
       ctx.restore();
     }
 
@@ -1212,7 +1237,7 @@
       ctx.restore();
     }
 
-    function drawLabel(px, py, p, uiScale = 1) {
+    function drawLabel(px, py, p, uiScale = 1, markerRadius = p.r) {
       ctx.save();
       ctx.translate(px, py);
       ctx.scale(uiScale, uiScale);
@@ -1220,14 +1245,14 @@
       if (p.isEarth) {
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = 'rgba(110,175,255,0.9)';
-        ctx.fillText(p.name, 0, -p.r - 6);
+        ctx.fillText(p.name, 0, -markerRadius - 6);
         ctx.font = '9px sans-serif';
         ctx.fillStyle = 'rgba(100,160,255,0.55)';
-        ctx.fillText('вы здесь', 0, -p.r - 17);
+        ctx.fillText('вы здесь', 0, -markerRadius - 17);
       } else {
         ctx.font = '10px sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.fillText(p.name, 0, -p.r - 6);
+        ctx.fillText(p.name, 0, -markerRadius - 6);
       }
       ctx.restore();
     }
@@ -1316,7 +1341,8 @@
 
       planetsInDrawOrder.forEach(p => {
         const { px, py } = p;
-        const visualR = p.r * planetUiScale;
+        const primaryMarkerRadius = Math.max(p.r, 2);
+        const visualR = primaryMarkerRadius * planetUiScale;
 
         // ── Saturn: back ring half ──
         if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, false);
@@ -1339,7 +1365,7 @@
         // ── Saturn: front ring half ──
         if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, true);
 
-        drawLabel(px, py, p, labelUiScale);
+        drawLabel(px, py, p, labelUiScale, primaryMarkerRadius);
 
         // ── Earth's Moon ──
         if (p.hasMoon) {

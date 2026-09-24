@@ -59,7 +59,8 @@
         if (mode === 1) pixels *= 16;
         if (mode === 2) pixels *= Math.max(1, Number(viewportHeight) || 800);
         pixels = Math.max(-240, Math.min(240, pixels));
-        return Math.exp(-pixels * 0.0015);
+        const sensitivity = Math.abs(pixels) < 40 ? 0.003 : 0.0015;
+        return Math.exp(-pixels * sensitivity);
     }
 
     function solarDistanceToPixels(distanceAu, maximumRadius, viewScale = 1) {

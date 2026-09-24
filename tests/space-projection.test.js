@@ -105,8 +105,9 @@ test('масштабирование колесом учитывает вели�
     const trackpad = projection.wheelZoomFactor(-2, 0, 800);
     const wheel = projection.wheelZoomFactor(-100, 0, 800);
 
-    assert.ok(trackpad > 1 && trackpad < 1.01);
+    assert.ok(trackpad > 1.005 && trackpad < 1.01);
     assert.ok(wheel > trackpad);
+    assert.ok(Math.abs(wheel - Math.exp(0.15)) < 1e-12);
     assert.ok(projection.wheelZoomFactor(100, 0, 800) < 1);
     assert.ok(Number.isFinite(projection.wheelZoomFactor(-3, 1, 800)));
 });
