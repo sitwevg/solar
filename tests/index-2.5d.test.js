@@ -43,6 +43,7 @@ test('линии орбит и планеты строятся одной мод
     assert.match(html, /function ensureOrbitPaths\(\)/);
     assert.match(html, /ORBIT_PATHS\.set\(planet\.body, points\)/);
     assert.match(html, /PLANETS\.forEach\(drawOrbit\)/);
+    assert.doesNotMatch(html, /ctx\.arc\(cx, cy, auToPx\(planet\.sma\)/);
 });
 
 test('карта использует гибридную шкалу до реальной границы гелиопаузы', () => {

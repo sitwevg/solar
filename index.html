@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.1"></script>
+  <script src="src/core/space-projection.js?v=0.2.2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -1027,15 +1027,6 @@
     }
 
     function drawOrbit(planet) {
-      if (projectionMode === SolarSpaceProjection.MODE_TOP) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, auToPx(planet.sma), 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.065)';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-        return;
-      }
-
       ensureOrbitPaths();
       const cacheKey = projectionCacheKey();
       let cached = PROJECTED_ORBIT_CACHE.get(planet.body);

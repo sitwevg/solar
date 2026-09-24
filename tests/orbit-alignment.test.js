@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Astronomy = require('../astronomy.js');
+const projection = require('../src/core/space-projection.js');
 
 const MS_PER_DAY = 86400000;
 const PLANETS = [
@@ -63,6 +64,54 @@ test('положение каждой планеты лежит на постр�
 
             const relativeError = nearest / Math.hypot(position.x, position.y, position.z);
             assert.ok(relativeError < 0.001, `${body} ${date.toISOString()}: отклонение ${relativeError}`);
+        }
+    }
+});
+
+test('в 2D маркер каждой планеты лежит на отображаемой линии орбиты', () => {
+    const dates = [
+        new Date('2026-01-15T12:00:00Z'),
+        new Date('2026-04-15T12:00:00Z'),
+        new Date('2026-07-15T12:00:00Z'),
+        new Date('2026-10-15T12:00:00Z')
+    ];
+    const epoch = Date.UTC(2026, 0, 1, 12);
+    const rotation = Astronomy.Rotation_EQJ_ECL();
+    const sampleCount = 240;
+    const projectTop = point => projection.projectPoint(point, {
+        centerX: 0,
+        centerY: 0,
+        mode: projection.MODE_TOP,
+        tiltDeg: projection.DEFAULT_TILT,
+        distanceToPixels: distance => projection.solarDistanceToPixels(distance, 300)
+    });
+
+    for (const [body, periodDays] of PLANETS) {
+        const path = Array.from({ length: sampleCount }, (_, index) => projectTop(
+            Astronomy.RotateVector(
+                rotation,
+                Astronomy.HelioVector(
+                    Astronomy.Body[body],
+                    new Date(epoch + periodDays * MS_PER_DAY * index / sampleCount)
+                )
+            )
+        ));
+
+        for (const date of dates) {
+            const position = projectTop(Astronomy.RotateVector(
+                rotation,
+                Astronomy.HelioVector(Astronomy.Body[body], date)
+            ));
+            let nearest = Infinity;
+            path.forEach((start, index) => {
+                nearest = Math.min(nearest, segmentDistance(
+                    { ...position, z: 0 },
+                    { ...start, z: 0 },
+                    { ...path[(index + 1) % path.length], z: 0 }
+                ));
+            });
+
+            assert.ok(nearest < 0.35, `${body} ${date.toISOString()}: отклонение ${nearest}px`);
         }
     }
 });
