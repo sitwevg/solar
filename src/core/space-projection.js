@@ -45,24 +45,34 @@
         );
     }
 
-    function solarDistanceToPixels(distanceAu, maximumRadius) {
+    function semanticZoomBoost(distanceAu, viewScale) {
+        const distance = Math.max(0, Number(distanceAu) || 0);
+        const scale = Math.max(0, Number(viewScale) || 0);
+        const detail = Math.max(0, Math.min(1, (scale - 1) / 3));
+        const innerWeight = Math.max(0, Math.min(1, 1 - distance / SCALE_INNER_EDGE_AU));
+        return 1 + detail * innerWeight * 0.65;
+    }
+
+    function solarDistanceToPixels(distanceAu, maximumRadius, viewScale = 1) {
         const distance = Math.max(0, Number(distanceAu) || 0);
         const radius = Math.max(1, Number(maximumRadius) || 1);
         const innerRadius = radius * 0.44;
         const kuiperRadius = radius * 0.78;
+        let mappedRadius;
 
         if (distance <= SCALE_INNER_EDGE_AU) {
-            return innerRadius * Math.pow(distance / SCALE_INNER_EDGE_AU, 0.4);
-        }
-        if (distance <= SCALE_KUIPER_EDGE_AU) {
+            mappedRadius = innerRadius * Math.pow(distance / SCALE_INNER_EDGE_AU, 0.4);
+        } else if (distance <= SCALE_KUIPER_EDGE_AU) {
             const amount = (distance - SCALE_INNER_EDGE_AU)
                 / (SCALE_KUIPER_EDGE_AU - SCALE_INNER_EDGE_AU);
-            return innerRadius + (kuiperRadius - innerRadius) * amount;
+            mappedRadius = innerRadius + (kuiperRadius - innerRadius) * amount;
+        } else {
+            const outerSlope = (radius - kuiperRadius)
+                / (SCALE_HELIOPAUSE_AU - SCALE_KUIPER_EDGE_AU);
+            mappedRadius = kuiperRadius + (distance - SCALE_KUIPER_EDGE_AU) * outerSlope;
         }
 
-        const outerSlope = (radius - kuiperRadius)
-            / (SCALE_HELIOPAUSE_AU - SCALE_KUIPER_EDGE_AU);
-        return kuiperRadius + (distance - SCALE_KUIPER_EDGE_AU) * outerSlope;
+        return mappedRadius * semanticZoomBoost(distance, viewScale);
     }
 
     function projectPoint(point, options) {
@@ -152,6 +162,7 @@
         clampTilt,
         normalizeMode,
         tiltFromVerticalDrag,
+        semanticZoomBoost,
         solarDistanceToPixels,
         projectPoint,
         orbitPoint,

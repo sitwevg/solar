@@ -56,9 +56,16 @@ test('линии орбит и планеты строятся одной мод
 });
 
 test('карта использует гибридную шкалу до реальной границы гелиопаузы', () => {
-    assert.match(html, /SolarSpaceProjection\.solarDistanceToPixels\(au, maxR \* ORBIT_SCALE\)/);
+    assert.match(html, /SolarSpaceProjection\.solarDistanceToPixels\(au, maxR \* ORBIT_SCALE, viewScale\)/);
     assert.match(html, /const r = auToPx\(120\)/);
     assert.match(html, /30 \+ Math\.random\(\) \* 25/);
+});
+
+test('семантический зум удерживает маркеры и подписи в читаемом размере', () => {
+    assert.match(html, /function mapUiScale\(\)/);
+    assert.match(html, /const visualR = p\.r \* uiScale/);
+    assert.match(html, /drawLabel\(px, py, p, uiScale\)/);
+    assert.match(html, /drawMoon\([^;]+uiScale\)/s);
 });
 
 test('объём пояса Койпера включает наклонённую орбиту Плутона', () => {

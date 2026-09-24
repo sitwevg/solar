@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.3"></script>
+  <script src="src/core/space-projection.js?v=0.2.4"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -922,7 +922,7 @@
 
     // ── Scale: AU → pixels (hybrid educational scale) ───────────────
     function auToPx(au) {
-      return SolarSpaceProjection.solarDistanceToPixels(au, maxR * ORBIT_SCALE);
+      return SolarSpaceProjection.solarDistanceToPixels(au, maxR * ORBIT_SCALE, viewScale);
     }
 
     // Heliocentric XYZ (AU) → canvas-space. In top mode this is pixel-identical
@@ -959,7 +959,11 @@
     }
 
     function projectionCacheKey() {
-      return `${projectionMode}:${projectionTilt}:${W}:${H}`;
+      return `${projectionMode}:${projectionTilt}:${viewScale.toFixed(3)}:${W}:${H}`;
+    }
+
+    function mapUiScale() {
+      return 1 / Math.max(1, viewScale);
     }
 
     // ── Draw helpers ──────────────────────────────────────────────────
@@ -976,28 +980,34 @@
       ctx.restore();
     }
 
-    function drawSun(t) {
+    function drawSun(t, uiScale = 1) {
       const p = 1 + 0.04 * Math.sin(t * 0.0007);
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 72 * p);
+      const glowR = 72 * p * uiScale;
+      const coreR = 11 * uiScale;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
       g.addColorStop(0,    'rgba(255,255,220,0.95)');
       g.addColorStop(0.14, 'rgba(255,200,55,0.7)');
       g.addColorStop(0.42, 'rgba(255,120,0,0.22)');
       g.addColorStop(1,    'rgba(255,50,0,0)');
       ctx.beginPath();
-      ctx.arc(cx, cy, 72 * p, 0, Math.PI * 2);
+      ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
       ctx.fillStyle = g;
       ctx.fill();
       // core
-      ctx.shadowBlur = 18; ctx.shadowColor = '#ffcc44';
+      ctx.shadowBlur = 18 * uiScale; ctx.shadowColor = '#ffcc44';
       ctx.beginPath();
-      ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+      ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
       ctx.fillStyle = '#fffce0'; ctx.fill();
       ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
       // label
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(uiScale, uiScale);
       ctx.font = '10px sans-serif';
       ctx.fillStyle = 'rgba(255,230,100,0.45)';
       ctx.textAlign = 'center';
-      ctx.fillText('Солнце', cx, cy + 22);
+      ctx.fillText('Солнце', 0, 22);
+      ctx.restore();
     }
 
     // Saturn rings: C-ring (faint), B-ring (bright), Cassini gap, A-ring, F-ring
@@ -1180,30 +1190,34 @@
       ctx.restore();
     }
 
-    function drawMoon(px, py, angle, dr, color, r = 1.5, alpha = 0.72) {
+    function drawMoon(px, py, angle, dr, color, r = 1.5, alpha = 0.72, uiScale = 1) {
       if (alpha <= 0) return;
       ctx.beginPath();
-      ctx.arc(px + dr * Math.cos(angle), py + dr * Math.sin(angle), r, 0, Math.PI * 2);
+      ctx.arc(px + dr * Math.cos(angle), py + dr * Math.sin(angle), r * uiScale, 0, Math.PI * 2);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = color;
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    function drawLabel(px, py, p) {
+    function drawLabel(px, py, p, uiScale = 1) {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(uiScale, uiScale);
       ctx.textAlign = 'center';
       if (p.isEarth) {
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = 'rgba(110,175,255,0.9)';
-        ctx.fillText(p.name, px, py - p.r - 6);
+        ctx.fillText(p.name, 0, -p.r - 6);
         ctx.font = '9px sans-serif';
         ctx.fillStyle = 'rgba(100,160,255,0.55)';
-        ctx.fillText('вы здесь', px, py - p.r - 17);
+        ctx.fillText('вы здесь', 0, -p.r - 17);
       } else {
         ctx.font = '10px sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.fillText(p.name, px, py - p.r - 6);
+        ctx.fillText(p.name, 0, -p.r - 6);
       }
+      ctx.restore();
     }
 
     // ── Main render loop ──────────────────────────────────────────────
@@ -1247,7 +1261,8 @@
       drawKuiper(ts);
       PLANETS.forEach(drawOrbit);
 
-      drawSun(ts);
+      const uiScale = mapUiScale();
+      drawSun(ts, uiScale);
 
       // Earth position for distance calc
       let earthVec = null;
@@ -1286,29 +1301,30 @@
 
       planetsInDrawOrder.forEach(p => {
         const { px, py } = p;
+        const visualR = p.r * uiScale;
 
         // ── Saturn: back ring half ──
-        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, p.r, false);
+        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, false);
 
         // ── Planet body ──
-        ctx.shadowBlur = p.r * 2.8; ctx.shadowColor = p.color;
+        ctx.shadowBlur = visualR * 2.8; ctx.shadowColor = p.color;
         ctx.beginPath();
-        ctx.arc(px, py, p.r, 0, Math.PI * 2);
+        ctx.arc(px, py, visualR, 0, Math.PI * 2);
         ctx.fillStyle = p.color; ctx.fill();
         ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
         // Earth indicator ring
         if (p.isEarth) {
           ctx.beginPath();
-          ctx.arc(px, py, p.r + 4, 0, Math.PI * 2);
+          ctx.arc(px, py, visualR + 4 * uiScale, 0, Math.PI * 2);
           ctx.strokeStyle = 'rgba(80,150,255,0.42)';
-          ctx.lineWidth = 1; ctx.stroke();
+          ctx.lineWidth = uiScale; ctx.stroke();
         }
 
         // ── Saturn: front ring half ──
-        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, p.r, true);
+        if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, true);
 
-        drawLabel(px, py, p);
+        drawLabel(px, py, p, uiScale);
 
         // ── Earth's Moon ──
         if (p.hasMoon) {
@@ -1316,7 +1332,7 @@
             const m = Astronomy.GeoMoon(simTime);
             const eps = 23.44 * Math.PI / 180;
             const my = m.y * Math.cos(eps) + m.z * Math.sin(eps);
-            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2, 0.72 * moonVis);
+            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2, 0.72 * moonVis, uiScale);
           } catch(e) {}
         }
 
@@ -1330,7 +1346,7 @@
               { m: jm.ganymede, color: '#9090a8', dr: p.r + 19 },
               { m: jm.callisto, color: '#707070', dr: p.r + 26 },
             ].forEach(({ m, color, dr }) =>
-              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5, 0.72 * moonVis)
+              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5, 0.72 * moonVis, uiScale)
             );
           } catch(e) {}
         }
@@ -1342,7 +1358,7 @@
             const d = simTime.getTime() / MS_PER_DAY;
             const minOff = p.hasRings ? Math.ceil(p.r * 2.5) : p.r + 6;
             moons.forEach((moon, i) => {
-              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5, 0.72 * moonVis);
+              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5, 0.72 * moonVis, uiScale);
             });
           }
         }

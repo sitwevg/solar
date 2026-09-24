@@ -85,3 +85,18 @@ test('орбита Плутона остаётся внутри визуальн
     assert.equal(plutoPerihelion, beltInner);
     assert.ok(plutoAphelion < beltOuter);
 });
+
+test('семантический зум раскрывает внутреннюю систему и не двигает внешние границы', () => {
+    const radius = 300;
+    const overviewVenus = projection.solarDistanceToPixels(0.723, radius, 1);
+    const overviewEarth = projection.solarDistanceToPixels(1, radius, 1);
+    const detailVenus = projection.solarDistanceToPixels(0.723, radius, 4);
+    const detailEarth = projection.solarDistanceToPixels(1, radius, 4);
+
+    assert.ok(detailEarth > overviewEarth * 1.5);
+    assert.ok(detailEarth - detailVenus > overviewEarth - overviewVenus);
+    assert.equal(
+        projection.solarDistanceToPixels(120, radius, 4),
+        projection.solarDistanceToPixels(120, radius, 1)
+    );
+});
