@@ -44,3 +44,15 @@ test('линии орбит и планеты строятся одной мод
     assert.match(html, /ORBIT_PATHS\.set\(planet\.body, points\)/);
     assert.match(html, /PLANETS\.forEach\(drawOrbit\)/);
 });
+
+test('карта использует гибридную шкалу до реальной границы гелиопаузы', () => {
+    assert.match(html, /SolarSpaceProjection\.solarDistanceToPixels\(au, maxR \* ORBIT_SCALE\)/);
+    assert.match(html, /const r = auToPx\(120\)/);
+    assert.match(html, /30 \+ Math\.random\(\) \* 25/);
+});
+
+test('объём пояса Койпера включает наклонённую орбиту Плутона', () => {
+    assert.match(html, /Array\.from\(\{ length: 700 \}/);
+    assert.match(html, /hotPopulation = Math\.random\(\) < 0\.42/);
+    assert.match(html, /7 \+ Math\.random\(\) \* 25/);
+});

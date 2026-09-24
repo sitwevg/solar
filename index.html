@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.0"></script>
+  <script src="src/core/space-projection.js?v=0.2.1"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -609,16 +609,20 @@
     }));
 
     // ── Kuiper Belt ───────────────────────────────────────────────────
-    const KUIPER = Array.from({ length: 500 }, () => ({
-      angle: Math.random() * Math.PI * 2,
-      au:    30 + Math.random() * 20,
-      inclination: (Math.random() < 0.72 ? Math.random() * 5 : 5 + Math.random() * 20) * Math.PI / 180,
-      node: Math.random() * Math.PI * 2,
-      size:  Math.random() * 0.5 + 0.25,
-      alpha: Math.random() * 0.3 + 0.08,
-      sp:    Math.random() * 0.5 + 0.15,
-      ph:    Math.random() * Math.PI * 2,
-    }));
+    const KUIPER = Array.from({ length: 700 }, () => {
+      const hotPopulation = Math.random() < 0.42;
+      return {
+        angle: Math.random() * Math.PI * 2,
+        au:    30 + Math.random() * 25,
+        inclination: (hotPopulation ? 7 + Math.random() * 25 : Math.random() * 7) * Math.PI / 180,
+        node: Math.random() * Math.PI * 2,
+        size:  Math.random() * 0.5 + 0.25,
+        alpha: Math.random() * 0.3 + (hotPopulation ? 0.06 : 0.09),
+        sp:    Math.random() * 0.5 + 0.15,
+        ph:    Math.random() * Math.PI * 2,
+        hotPopulation
+      };
+    });
 
     // ── Comets ────────────────────────────────────────────────────────
     const comets = [];
@@ -916,12 +920,9 @@
       PROJECTED_ORBIT_CACHE.clear();
     }
 
-    // ── Scale: AU → pixels (logarithmic) ─────────────────────────────
+    // ── Scale: AU → pixels (hybrid educational scale) ───────────────
     function auToPx(au) {
-      const L0 = Math.log10(0.2);
-      const L1 = Math.log10(52);
-      const lv = Math.log10(Math.max(au, 0.01));
-      return 35 + ((lv - L0) / (L1 - L0)) * (maxR * ORBIT_SCALE - 35);
+      return SolarSpaceProjection.solarDistanceToPixels(au, maxR * ORBIT_SCALE);
     }
 
     // Heliocentric XYZ (AU) → canvas-space. In top mode this is pixel-identical
@@ -1066,13 +1067,13 @@
         isFeature: true,
         stats: [
           { label: 'Начало', value: '≈30 а.е.', sub: 'у орбиты Нептуна' },
-          { label: 'Основная часть', value: 'до ≈50 а.е.', sub: 'дальше — рассеянный диск' },
+          { label: 'Основная часть', value: 'до ≈55 а.е.', sub: 'дальше — рассеянный диск' },
           { label: 'Известно объектов', value: '> 2 000', sub: 'и это лишь малая часть' },
           { label: 'Крупнее 100 км', value: 'Сотни тысяч', sub: 'по оценке астрономов' },
           { label: 'Самый известный', value: 'Плутон', sub: 'карликовая планета' },
           { label: 'Возраст', value: '≈4,6 млрд лет', sub: 'остатки рождения системы' },
         ],
-        desc: 'Пояс Койпера — не тонкое кольцо, а огромная область в форме толстого диска, заполненная ледяными остатками рождения Солнечной системы. Его основная часть начинается у орбиты Нептуна примерно в 30 а.е. от Солнца и заканчивается около 50 а.е., но рассеянный диск продолжается почти до 1 000 а.е. Плутон — лишь самый знаменитый житель этой области. А ещё «холодные» и «горячие» группы объектов названы вовсе не по температуре: эти слова описывают спокойные или сильнее наклонённые и вытянутые орбиты.'
+        desc: 'Пояс Койпера — не тонкое кольцо, а огромная область в форме толстого диска, заполненная ледяными остатками рождения Солнечной системы. Его основная часть начинается у орбиты Нептуна примерно в 30 а.е. от Солнца и заканчивается около 55 а.е., но рассеянный диск продолжается почти до 1 000 а.е. Плутон — лишь самый знаменитый житель этой области. А ещё «холодные» и «горячие» группы объектов названы вовсе не по температуре: эти слова описывают спокойные или сильнее наклонённые и вытянутые орбиты.'
       },
       heliopause: {
         name: 'Гелиопауза',
@@ -1138,14 +1139,16 @@
         const point = o.projected.point;
         const a = o.alpha * (0.5 + 0.5 * Math.sin(o.ph + ts * o.sp * 0.0003));
         ctx.globalAlpha = Math.min(1, a * 3.5);
-        ctx.fillStyle = o.au < 40 ? '#c8d8f0' : '#a0b8d8';
+        ctx.fillStyle = o.hotPopulation
+          ? 'rgba(172, 198, 235, 0.9)'
+          : (o.au < 40 ? '#c8d8f0' : '#a0b8d8');
         ctx.beginPath();
         ctx.arc(point.x, point.y, o.size, 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
       // Надпись пояса Койпера
-      const rInner = auToPx(30), rOuter = auToPx(50);
+      const rInner = auToPx(30), rOuter = auToPx(55);
       const rLabel = (rInner + rOuter) / 2;
       const labelPoint = projectAtPixelRadius(0, 1, 0, rLabel);
       drawFeatureLabel(
@@ -1156,7 +1159,7 @@
     }
 
     function drawHeliopause() {
-      const r = auToPx(50) * 1.2;
+      const r = auToPx(120);
       const cacheKey = `${projectionCacheKey()}:${r}`;
       if (!heliopauseProjectionCache || heliopauseProjectionCache.key !== cacheKey) {
         heliopauseProjectionCache = {

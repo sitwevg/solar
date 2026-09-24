@@ -50,3 +50,30 @@ test('наклонённая орбита Плутона содержит нен
         assert.ok(Math.abs(points[0][axis] - points.at(-1)[axis]) < 1e-10);
     }
 });
+
+test('гибридная шкала разделяет внешние планеты и сохраняет границы пояса', () => {
+    const radius = 300;
+    const uranus = projection.solarDistanceToPixels(19.19, radius);
+    const neptune = projection.solarDistanceToPixels(30.07, radius);
+    const plutoAverage = projection.solarDistanceToPixels(39.48, radius);
+    const kuiperOuter = projection.solarDistanceToPixels(55, radius);
+    const heliopause = projection.solarDistanceToPixels(120, radius);
+
+    assert.ok(uranus < neptune);
+    assert.ok(neptune < plutoAverage);
+    assert.ok(plutoAverage < kuiperOuter);
+    assert.ok(neptune - uranus > radius * 0.07);
+    assert.ok(plutoAverage - neptune > radius * 0.05);
+    assert.equal(heliopause, radius);
+});
+
+test('орбита Плутона остаётся внутри визуального пояса Койпера', () => {
+    const radius = 300;
+    const beltInner = projection.solarDistanceToPixels(30, radius);
+    const beltOuter = projection.solarDistanceToPixels(55, radius);
+    const plutoPerihelion = projection.solarDistanceToPixels(30, radius);
+    const plutoAphelion = projection.solarDistanceToPixels(49.3, radius);
+
+    assert.equal(plutoPerihelion, beltInner);
+    assert.ok(plutoAphelion < beltOuter);
+});

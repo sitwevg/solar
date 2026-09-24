@@ -21,6 +21,9 @@
     const MIN_TILT = 20;
     const MAX_TILT = 70;
     const DEFAULT_TILT = 42;
+    const SCALE_INNER_EDGE_AU = 10;
+    const SCALE_KUIPER_EDGE_AU = 55;
+    const SCALE_HELIOPAUSE_AU = 120;
 
     function clampTilt(value) {
         const numeric = Number(value);
@@ -30,6 +33,26 @@
 
     function normalizeMode(mode) {
         return mode === MODE_VOLUME ? MODE_VOLUME : MODE_TOP;
+    }
+
+    function solarDistanceToPixels(distanceAu, maximumRadius) {
+        const distance = Math.max(0, Number(distanceAu) || 0);
+        const radius = Math.max(1, Number(maximumRadius) || 1);
+        const innerRadius = radius * 0.44;
+        const kuiperRadius = radius * 0.78;
+
+        if (distance <= SCALE_INNER_EDGE_AU) {
+            return innerRadius * Math.pow(distance / SCALE_INNER_EDGE_AU, 0.4);
+        }
+        if (distance <= SCALE_KUIPER_EDGE_AU) {
+            const amount = (distance - SCALE_INNER_EDGE_AU)
+                / (SCALE_KUIPER_EDGE_AU - SCALE_INNER_EDGE_AU);
+            return innerRadius + (kuiperRadius - innerRadius) * amount;
+        }
+
+        const outerSlope = (radius - kuiperRadius)
+            / (SCALE_HELIOPAUSE_AU - SCALE_KUIPER_EDGE_AU);
+        return kuiperRadius + (distance - SCALE_KUIPER_EDGE_AU) * outerSlope;
     }
 
     function projectPoint(point, options) {
@@ -112,8 +135,12 @@
         MIN_TILT,
         MAX_TILT,
         DEFAULT_TILT,
+        SCALE_INNER_EDGE_AU,
+        SCALE_KUIPER_EDGE_AU,
+        SCALE_HELIOPAUSE_AU,
         clampTilt,
         normalizeMode,
+        solarDistanceToPixels,
         projectPoint,
         orbitPoint,
         sampleOrbit
