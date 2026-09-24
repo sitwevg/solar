@@ -63,7 +63,7 @@ test('карта использует гибридную шкалу до реа�
 
 test('семантический зум удерживает маркеры и подписи в читаемом размере', () => {
     assert.match(html, /function mapUiScale\(detailMultiplier = 1\)/);
-    assert.match(html, /const primaryMarkerRadius = Math\.max\(p\.r, 2\)/);
+    assert.match(html, /const primaryMarkerRadius = Math\.max\(p\.r, 2\.8\)/);
     assert.match(html, /const visualR = primaryMarkerRadius \* planetUiScale/);
     assert.match(html, /drawLabel\(px, py, p, labelUiScale, primaryMarkerRadius\)/);
     assert.match(html, /function satelliteOrbitScale\(\)/);

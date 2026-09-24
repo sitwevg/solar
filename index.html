@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.6"></script>
+  <script src="src/core/space-projection.js?v=0.2.7"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -1341,7 +1341,9 @@
 
       planetsInDrawOrder.forEach(p => {
         const { px, py } = p;
-        const primaryMarkerRadius = Math.max(p.r, 2);
+        // Общий минимум для планет и карликовых планет учитывает не только
+        // заливку спутника, но и его светлую обводку. Харон отдельно не уменьшаем.
+        const primaryMarkerRadius = Math.max(p.r, 2.8);
         const visualR = primaryMarkerRadius * planetUiScale;
 
         // ── Saturn: back ring half ──
