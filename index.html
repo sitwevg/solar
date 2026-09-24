@@ -174,6 +174,15 @@
       display: grid; grid-template-columns: 1fr;
       gap: 5px; margin-bottom: 0; width: 50vw; flex-shrink: 0;
     }
+    #panel.feature .stat-grid {
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 800px) {
+      #panel.feature .stat-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
     .stat-box {
       background: rgba(255,255,255,0.055);
       border-radius: 10px; padding: 7px 9px;
@@ -890,6 +899,63 @@
       ctx.stroke();
     }
 
+    const FEATURE_INFO = {
+      kuiper: {
+        name: 'Пояс Койпера',
+        type: 'Область ледяных тел за орбитой Нептуна',
+        color: '#b4d2ff',
+        isFeature: true,
+        stats: [
+          { label: 'Начало', value: '≈30 а.е.', sub: 'у орбиты Нептуна' },
+          { label: 'Основная часть', value: 'до ≈50 а.е.', sub: 'дальше — рассеянный диск' },
+          { label: 'Известно объектов', value: '> 2 000', sub: 'и это лишь малая часть' },
+          { label: 'Крупнее 100 км', value: 'Сотни тысяч', sub: 'по оценке астрономов' },
+          { label: 'Самый известный', value: 'Плутон', sub: 'карликовая планета' },
+          { label: 'Возраст', value: '≈4,6 млрд лет', sub: 'остатки рождения системы' },
+        ],
+        desc: 'Пояс Койпера — не тонкое кольцо, а огромная область в форме толстого диска, заполненная ледяными остатками рождения Солнечной системы. Его основная часть начинается у орбиты Нептуна примерно в 30 а.е. от Солнца и заканчивается около 50 а.е., но рассеянный диск продолжается почти до 1 000 а.е. Плутон — лишь самый знаменитый житель этой области. А ещё «холодные» и «горячие» группы объектов названы вовсе не по температуре: эти слова описывают спокойные или сильнее наклонённые и вытянутые орбиты.'
+      },
+      heliopause: {
+        name: 'Гелиопауза',
+        type: 'Граница гелиосферы и межзвёздной среды',
+        color: '#d2e6ff',
+        isFeature: true,
+        stats: [
+          { label: 'Voyager 1', value: '≈122 а.е.', sub: 'пересёк в 2012 году' },
+          { label: 'Voyager 2', value: '≈119 а.е.', sub: 'пересёк в 2018 году' },
+          { label: 'До Солнца', value: '≈18 млрд км', sub: 'по траектории Voyager 1' },
+          { label: 'Что встречается', value: 'Два давления', sub: 'солнечный и межзвёздный ветер' },
+          { label: 'Форма', value: 'Меняется', sub: 'это не идеальная сфера' },
+          { label: 'За границей', value: 'Межзвёздная среда', sub: 'но не конец Солнечной системы' },
+        ],
+        desc: 'Гелиопауза — граница гигантского пузыря, который солнечный ветер выдувает в межзвёздной среде. Она находится там, где давление частиц от Солнца уравновешивается давлением вещества между звёздами, поэтому её форма и расстояние меняются. Voyager 1 и Voyager 2 пересекли эту границу на разных расстояниях. Сам переход нельзя увидеть глазами: его распознали по резкому уменьшению солнечных частиц и росту космических лучей. И важная деталь — выйти за гелиопаузу не значит покинуть Солнечную систему: притяжение Солнца действует намного дальше.'
+      }
+    };
+
+    let featureLabelHits = [];
+    let hoveredFeature = null;
+
+    function drawFeatureLabel(text, x, y, font, color, feature) {
+      ctx.font = font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const width = ctx.measureText(text).width;
+      featureLabelHits.push({ x, y, width, height: 12, feature });
+
+      const hovered = hoveredFeature === feature;
+      ctx.fillStyle = hovered ? '#ffffff' : color;
+      ctx.fillText(text, x, y);
+
+      if (hovered) {
+        ctx.beginPath();
+        ctx.moveTo(x - width / 2, y + 2);
+        ctx.lineTo(x + width / 2, y + 2);
+        ctx.strokeStyle = 'rgba(150, 205, 255, 0.9)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+    }
+
     function drawKuiper(ts) {
       ctx.save();
       KUIPER.forEach(o => {
@@ -905,10 +971,10 @@
       // Надпись пояса Койпера
       const rInner = auToPx(30), rOuter = auToPx(50);
       const rLabel = (rInner + rOuter) / 2;
-      ctx.font = '9px sans-serif';
-      ctx.fillStyle = 'rgba(180, 210, 255, 0.5)';
-      ctx.textAlign = 'center';
-      ctx.fillText('Пояс Койпера', cx, cy - rLabel - 4);
+      drawFeatureLabel(
+        'Пояс Койпера', cx, cy - rLabel - 4,
+        '9px sans-serif', 'rgba(180, 210, 255, 0.58)', FEATURE_INFO.kuiper
+      );
       ctx.restore();
     }
 
@@ -922,10 +988,10 @@
       ctx.setLineDash([6, 14]);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = 'rgba(210, 230, 255, 0.6)';
-      ctx.textAlign = 'center';
-      ctx.fillText('Гелиопауза ~120 а.е.', cx, cy - r - 6);
+      drawFeatureLabel(
+        'Гелиопауза ~120 а.е.', cx, cy - r - 6,
+        '10px sans-serif', 'rgba(210, 230, 255, 0.68)', FEATURE_INFO.heliopause
+      );
       ctx.restore();
     }
 
@@ -991,6 +1057,7 @@
       drawComets(ts);
 
       // Orbit rings
+      featureLabelHits = [];
       drawHeliopause();
       drawKuiper(ts);
       PLANETS.forEach(p => drawOrbit(auToPx(p.sma)));
@@ -1113,14 +1180,38 @@
     // ── Info panel ────────────────────────────────────────────────────
     const panel = document.getElementById('panel');
 
+    const PANEL_STAT_IDS = [
+      ['sl-sun', 's-sun-au', 's-sun-km'],
+      ['sl-earth', 's-earth-au', 's-earth-km'],
+      ['sl-period', 's-period', 's-period-sub'],
+      ['sl-diam', 's-diam', 's-diam-sub'],
+      ['sl-speed', 's-speed', 's-speed-sub'],
+      ['sl-moons', 's-moons', 's-moons-sub'],
+    ];
+
+    function showFeatureStats(stats) {
+      PANEL_STAT_IDS.forEach((ids, index) => {
+        const stat = stats[index] || { label: '', value: '', sub: '' };
+        document.getElementById(ids[0]).textContent = stat.label;
+        document.getElementById(ids[1]).textContent = stat.value;
+        document.getElementById(ids[2]).textContent = stat.sub || '';
+      });
+    }
+
     function showPanel(p) {
       currentPlanet = p;
+      panel.classList.toggle('feature', Boolean(p.isFeature));
       document.getElementById('panel-name').textContent = p.name;
       document.getElementById('panel-name').style.color = p.color;
       document.getElementById('panel-type').textContent = p.type;
-      document.getElementById('panel-img').src = p.img || '';
+      const panelImg = document.getElementById('panel-img');
+      panelImg.src = p.img || '';
+      panelImg.style.display = p.img ? 'block' : 'none';
 
-      if (p.isSun) {
+      if (p.isFeature) {
+        document.getElementById('zoom-btn').style.display = 'none';
+        showFeatureStats(p.stats);
+      } else if (p.isSun) {
         document.getElementById('zoom-btn').style.display = 'none';
         document.getElementById('sl-sun').textContent    = 'Диаметр';
         document.getElementById('sl-earth').textContent  = 'До Земли';
@@ -1242,6 +1333,14 @@
     dateModal.addEventListener('click', e => { if (e.target === dateModal) closeDateModal(); });
 
     // ── Touch / click (main canvas) ───────────────────────────────────
+    function findFeatureLabel(x, y) {
+      return featureLabelHits.find(hit => {
+        const halfW = Math.max(hit.width / 2 + 8, 28 / viewScale);
+        const halfH = Math.max(hit.height / 2 + 7, 18 / viewScale);
+        return Math.abs(x - hit.x) <= halfW && Math.abs(y - hit.y) <= halfH;
+      }) || null;
+    }
+
     function findPlanet(x, y) {
       if (Math.hypot(x - cx, y - cy) < 24) return SUN;
       let best = null, bestDist = Infinity;
@@ -1254,7 +1353,8 @@
     }
 
     function handleTap(pos) {
-      const p = findPlanet(pos.x, pos.y);
+      const featureHit = findFeatureLabel(pos.x, pos.y);
+      const p = featureHit ? featureHit.feature : findPlanet(pos.x, pos.y);
       if (p) showPanel(p);
       else if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
     }
@@ -1274,7 +1374,13 @@
       canvas.style.cursor = 'grabbing';
     });
     canvas.addEventListener('mousemove', e => {
-      if (!mousePanStart) return;
+      if (!mousePanStart) {
+        const pos = screenToWorld(e.clientX, e.clientY);
+        const featureHit = findFeatureLabel(pos.x, pos.y);
+        hoveredFeature = featureHit ? featureHit.feature : null;
+        canvas.style.cursor = featureHit ? 'pointer' : 'grab';
+        return;
+      }
       const dx = e.clientX - mousePanStart.x, dy = e.clientY - mousePanStart.y;
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) mouseMoved = true;
       viewOX = mousePanStart.ox + dx;
@@ -1286,7 +1392,7 @@
       mousePanStart = null;
       canvas.style.cursor = 'grab';
     });
-    canvas.addEventListener('mouseleave', () => { mousePanStart = null; canvas.style.cursor = 'grab'; });
+    canvas.addEventListener('mouseleave', () => { mousePanStart = null; hoveredFeature = null; canvas.style.cursor = 'grab'; });
     canvas.style.cursor = 'grab';
 
     canvas.addEventListener('wheel', e => {
