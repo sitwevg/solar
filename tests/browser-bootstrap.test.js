@@ -24,10 +24,12 @@ test('каталог загружается в браузер рядом с Comm
     runBrowserScript(context, 'src/core/mission-schema.js');
     runBrowserScript(context, 'src/data/missions.js');
     runBrowserScript(context, 'src/core/catalog-bootstrap.js');
+    runBrowserScript(context, 'src/core/space-projection.js');
 
     assert.equal(context.SolarMissionCatalogState.ready, true);
     assert.equal(context.SolarMissionCatalogState.count, 20);
     assert.equal(context.SolarMissionCatalog.length, 20);
+    assert.equal(typeof context.SolarSpaceProjection.projectPoint, 'function');
     assert.equal(context.module.exports.sentinel, 'astronomy');
 });
 test('index.html подключает схему, каталог и проверку в правильном порядке', () => {
@@ -35,8 +37,10 @@ test('index.html подключает схему, каталог и провер
     const schemaIndex = html.indexOf('src/core/mission-schema.js');
     const catalogIndex = html.indexOf('src/data/missions.js');
     const bootstrapIndex = html.indexOf('src/core/catalog-bootstrap.js');
+    const projectionIndex = html.indexOf('src/core/space-projection.js');
 
     assert.ok(schemaIndex > -1);
     assert.ok(catalogIndex > schemaIndex);
     assert.ok(bootstrapIndex > catalogIndex);
+    assert.ok(projectionIndex > bootstrapIndex);
 });
