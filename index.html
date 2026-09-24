@@ -12,7 +12,7 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/space-projection.js?v=0.2.4"></script>
+  <script src="src/core/space-projection.js?v=0.2.5"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -962,7 +962,12 @@
       return `${projectionMode}:${projectionTilt}:${viewScale.toFixed(3)}:${W}:${H}`;
     }
 
-    function mapUiScale() {
+    function mapUiScale(detailMultiplier = 1) {
+      const detail = Math.max(0, Math.min(1, viewScale - 1));
+      return (1 + detail * (detailMultiplier - 1)) / Math.max(1, viewScale);
+    }
+
+    function satelliteOrbitScale() {
       return 1 / Math.max(1, viewScale);
     }
 
@@ -1192,12 +1197,19 @@
 
     function drawMoon(px, py, angle, dr, color, r = 1.5, alpha = 0.72, uiScale = 1) {
       if (alpha <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowBlur = 4 * uiScale;
+      ctx.shadowColor = color;
       ctx.beginPath();
       ctx.arc(px + dr * Math.cos(angle), py + dr * Math.sin(angle), r * uiScale, 0, Math.PI * 2);
-      ctx.globalAlpha = alpha;
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 0.8 * uiScale;
+      ctx.strokeStyle = 'rgba(235,245,255,0.9)';
+      ctx.stroke();
+      ctx.restore();
     }
 
     function drawLabel(px, py, p, uiScale = 1) {
@@ -1261,8 +1273,11 @@
       drawKuiper(ts);
       PLANETS.forEach(drawOrbit);
 
-      const uiScale = mapUiScale();
-      drawSun(ts, uiScale);
+      const planetUiScale = mapUiScale(1.35);
+      const labelUiScale = mapUiScale(1.2);
+      const moonUiScale = mapUiScale(1.65);
+      const moonOrbitScale = satelliteOrbitScale();
+      drawSun(ts, planetUiScale);
 
       // Earth position for distance calc
       let earthVec = null;
@@ -1301,7 +1316,7 @@
 
       planetsInDrawOrder.forEach(p => {
         const { px, py } = p;
-        const visualR = p.r * uiScale;
+        const visualR = p.r * planetUiScale;
 
         // ── Saturn: back ring half ──
         if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, false);
@@ -1316,15 +1331,15 @@
         // Earth indicator ring
         if (p.isEarth) {
           ctx.beginPath();
-          ctx.arc(px, py, visualR + 4 * uiScale, 0, Math.PI * 2);
+          ctx.arc(px, py, visualR + 4 * planetUiScale, 0, Math.PI * 2);
           ctx.strokeStyle = 'rgba(80,150,255,0.42)';
-          ctx.lineWidth = uiScale; ctx.stroke();
+          ctx.lineWidth = planetUiScale; ctx.stroke();
         }
 
         // ── Saturn: front ring half ──
         if (p.hasRings) drawSaturnRingHalf(ctx, px, py, visualR, true);
 
-        drawLabel(px, py, p, uiScale);
+        drawLabel(px, py, p, labelUiScale);
 
         // ── Earth's Moon ──
         if (p.hasMoon) {
@@ -1332,7 +1347,7 @@
             const m = Astronomy.GeoMoon(simTime);
             const eps = 23.44 * Math.PI / 180;
             const my = m.y * Math.cos(eps) + m.z * Math.sin(eps);
-            drawMoon(px, py, Math.atan2(my, m.x), p.r + 9, '#ccc', 2, 0.72 * moonVis, uiScale);
+            drawMoon(px, py, Math.atan2(my, m.x), (p.r + 9) * moonOrbitScale, '#ccc', 2, 0.9 * moonVis, moonUiScale);
           } catch(e) {}
         }
 
@@ -1346,7 +1361,7 @@
               { m: jm.ganymede, color: '#9090a8', dr: p.r + 19 },
               { m: jm.callisto, color: '#707070', dr: p.r + 26 },
             ].forEach(({ m, color, dr }) =>
-              drawMoon(px, py, Math.atan2(m.y, m.x), dr, color, 1.5, 0.72 * moonVis, uiScale)
+              drawMoon(px, py, Math.atan2(m.y, m.x), dr * moonOrbitScale, color, 1.5, 0.9 * moonVis, moonUiScale)
             );
           } catch(e) {}
         }
@@ -1358,7 +1373,7 @@
             const d = simTime.getTime() / MS_PER_DAY;
             const minOff = p.hasRings ? Math.ceil(p.r * 2.5) : p.r + 6;
             moons.forEach((moon, i) => {
-              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, minOff + i * 7, moon.color, 1.5, 0.72 * moonVis, uiScale);
+              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, (minOff + i * 7) * moonOrbitScale, moon.color, 1.5, 0.9 * moonVis, moonUiScale);
             });
           }
         }
@@ -1680,7 +1695,7 @@
 
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const factor = SolarSpaceProjection.wheelZoomFactor(e.deltaY, e.deltaMode, window.innerHeight);
       const newScale = Math.max(VIEW_MIN, Math.min(VIEW_MAX, viewScale * factor));
       const ratio = newScale / viewScale;
       viewOX = viewOX * ratio + (e.clientX - cx) * (1 - ratio);
@@ -2040,7 +2055,7 @@
       const zcx = zW/2, zcy = Math.round(zH*0.42);
       const rect = zoomCanvas.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const factor = SolarSpaceProjection.wheelZoomFactor(e.deltaY, e.deltaMode, window.innerHeight);
       const newVS = Math.max(ZV_MIN, Math.min(ZV_MAX, zVS * factor));
       const ratio = newVS / zVS;
       zVOX = zVOX * ratio + (mx - zcx) * (1 - ratio);

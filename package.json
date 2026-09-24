@@ -1,6 +1,6 @@
 {
   "name": "solar-system-history",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "description": "Интерактивная Солнечная система и история космических миссий",
   "scripts": {

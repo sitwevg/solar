@@ -50,7 +50,16 @@
         const scale = Math.max(0, Number(viewScale) || 0);
         const detail = Math.max(0, Math.min(1, (scale - 1) / 3));
         const innerWeight = Math.max(0, Math.min(1, 1 - distance / SCALE_INNER_EDGE_AU));
-        return 1 + detail * innerWeight * 0.65;
+        return 1 + detail * innerWeight * 1.1;
+    }
+
+    function wheelZoomFactor(deltaY, deltaMode = 0, viewportHeight = 800) {
+        let pixels = Number(deltaY) || 0;
+        const mode = Number(deltaMode) || 0;
+        if (mode === 1) pixels *= 16;
+        if (mode === 2) pixels *= Math.max(1, Number(viewportHeight) || 800);
+        pixels = Math.max(-240, Math.min(240, pixels));
+        return Math.exp(-pixels * 0.0015);
     }
 
     function solarDistanceToPixels(distanceAu, maximumRadius, viewScale = 1) {
@@ -163,6 +172,7 @@
         normalizeMode,
         tiltFromVerticalDrag,
         semanticZoomBoost,
+        wheelZoomFactor,
         solarDistanceToPixels,
         projectPoint,
         orbitPoint,

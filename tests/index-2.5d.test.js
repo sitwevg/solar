@@ -62,10 +62,12 @@ test('карта использует гибридную шкалу до реа�
 });
 
 test('семантический зум удерживает маркеры и подписи в читаемом размере', () => {
-    assert.match(html, /function mapUiScale\(\)/);
-    assert.match(html, /const visualR = p\.r \* uiScale/);
-    assert.match(html, /drawLabel\(px, py, p, uiScale\)/);
-    assert.match(html, /drawMoon\([^;]+uiScale\)/s);
+    assert.match(html, /function mapUiScale\(detailMultiplier = 1\)/);
+    assert.match(html, /const visualR = p\.r \* planetUiScale/);
+    assert.match(html, /drawLabel\(px, py, p, labelUiScale\)/);
+    assert.match(html, /function satelliteOrbitScale\(\)/);
+    assert.match(html, /drawMoon\([^;]+moonOrbitScale[^;]+moonUiScale\)/s);
+    assert.match(html, /wheelZoomFactor\(e\.deltaY, e\.deltaMode, window\.innerHeight\)/);
 });
 
 test('объём пояса Койпера включает наклонённую орбиту Плутона', () => {

@@ -94,9 +94,19 @@ test('семантический зум раскрывает внутренню�
     const detailEarth = projection.solarDistanceToPixels(1, radius, 4);
 
     assert.ok(detailEarth > overviewEarth * 1.5);
-    assert.ok(detailEarth - detailVenus > overviewEarth - overviewVenus);
+    assert.ok(detailEarth - detailVenus > (overviewEarth - overviewVenus) * 1.6);
     assert.equal(
         projection.solarDistanceToPixels(120, radius, 4),
         projection.solarDistanceToPixels(120, radius, 1)
     );
+});
+
+test('масштабирование колесом учитывает величину импульса тачпада', () => {
+    const trackpad = projection.wheelZoomFactor(-2, 0, 800);
+    const wheel = projection.wheelZoomFactor(-100, 0, 800);
+
+    assert.ok(trackpad > 1 && trackpad < 1.01);
+    assert.ok(wheel > trackpad);
+    assert.ok(projection.wheelZoomFactor(100, 0, 800) < 1);
+    assert.ok(Number.isFinite(projection.wheelZoomFactor(-3, 1, 800)));
 });
