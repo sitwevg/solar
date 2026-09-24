@@ -23,21 +23,24 @@ test('все встроенные JavaScript-блоки index.html синтак�
     assert.ok(compiled >= 3);
 });
 
-test('режим 2.5D имеет доступные кнопки переключения и наклона', () => {
+test('режим 3D имеет доступные кнопки переключения и наклона', () => {
     assert.match(html, /id="view-mode-btn"[^>]+aria-pressed="false"/);
-    assert.match(html, /id="tilt-controls"[^>]+aria-label="Наклон объёмного вида"/);
+    assert.match(html, /id="tilt-controls"[^>]+aria-label="Наклон 3D-вида"/);
     assert.match(html, /id="tilt-down"[^>]+aria-label="Уменьшить наклон"/);
     assert.match(html, /id="tilt-up"[^>]+aria-label="Увеличить наклон"/);
+    assert.match(html, /viewModeBtn\.textContent = volume \? '3D' : '2D'/);
 });
 
-test('вид сверху остаётся режимом по умолчанию, а объём использует реальную Z-координату', () => {
+test('вид сверху остаётся режимом по умолчанию, а 3D использует эклиптическую Z-координату', () => {
     assert.match(html, /projectionMode = SolarSpaceProjection\.MODE_TOP/);
-    assert.match(html, /projectSpacePoint\(vec\.x, vec\.y, vec\.z\)/);
+    assert.match(html, /Astronomy\.Rotation_EQJ_ECL\(\)/);
+    assert.match(html, /projectSpacePoint\(eclipticVec\.x, eclipticVec\.y, eclipticVec\.z\)/);
     assert.match(html, /sort\(\(a, b\) => a\.depth - b\.depth\)/);
 });
 
-test('у девяти планет заданы орбитальные элементы, включая наклон Плутона', () => {
-    assert.equal((html.match(/orbit: \{ semiMajorAxis:/g) || []).length, 9);
-    assert.match(html, /name: 'Плутон'[\s\S]{0,250}inclinationDeg: 17\.160/);
+test('линии орбит и планеты строятся одной моделью Astronomy Engine', () => {
+    assert.match(html, /function eclipticHelioVector\(body, date\)/);
+    assert.match(html, /function ensureOrbitPaths\(\)/);
+    assert.match(html, /ORBIT_PATHS\.set\(planet\.body, points\)/);
     assert.match(html, /PLANETS\.forEach\(drawOrbit\)/);
 });
