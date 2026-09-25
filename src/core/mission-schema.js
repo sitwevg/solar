@@ -219,11 +219,15 @@
                             pushError(errors, `${segmentPath}.orbit.${field}`, 'ожидалось положительное число');
                         }
                     });
-                    ['phaseDeg', 'launchAngleDeg', 'landingAngleDeg'].forEach((field) => {
+                    ['phaseDeg', 'launchAngleDeg'].forEach((field) => {
                         if (orbit[field] !== undefined && !Number.isFinite(orbit[field])) {
                             pushError(errors, `${segmentPath}.orbit.${field}`, 'ожидалось конечное число');
                         }
                     });
+                    if (orbit.launchProgress !== undefined
+                        && (!Number.isFinite(orbit.launchProgress) || orbit.launchProgress <= 0 || orbit.launchProgress >= 1)) {
+                        pushError(errors, `${segmentPath}.orbit.launchProgress`, 'ожидалось число больше 0 и меньше 1');
+                    }
                     if (orbit.launchSite !== undefined) requireString(orbit.launchSite, `${segmentPath}.orbit.launchSite`, errors);
                     if (orbit.returnMode !== undefined && !['landing', 'burn-up'].includes(orbit.returnMode)) {
                         pushError(errors, `${segmentPath}.orbit.returnMode`, 'ожидалось landing или burn-up');
@@ -278,6 +282,7 @@
         requireEnum(mission.scenarioType, 'scenarioType', `${path}.scenarioType`, errors);
         requireString(mission.summary, `${path}.summary`, errors);
         requireString(mission.objective, `${path}.objective`, errors);
+        if (mission.result !== undefined) requireString(mission.result, `${path}.result`, errors);
         requireStringArray(mission.story, `${path}.story`, errors);
         if (Array.isArray(mission.story) && mission.story.length !== 2) {
             pushError(errors, `${path}.story`, 'ожидалось ровно два абзаца');
@@ -325,6 +330,7 @@
         validateTrajectory(mission.trajectory, `${path}.trajectory`, errors);
         if (mission.dataStatus === 'trajectory-ready' || mission.dataStatus === 'published') {
             validateVehicle(mission.vehicle, `${path}.vehicle`, errors);
+            requireString(mission.result, `${path}.result`, errors);
         }
         return errors;
     }

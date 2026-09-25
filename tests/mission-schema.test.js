@@ -17,6 +17,13 @@ test('каждая миссия содержит полноценный расс
         mission.story.forEach((paragraph) => assert.ok(paragraph.length >= 180, `${mission.id}: слишком короткий абзац`));
     });
 });
+
+test('готовые симуляции содержат сформулированный результат, а не повтор цели', () => {
+    missions.filter((mission) => mission.dataStatus === 'trajectory-ready').forEach((mission) => {
+        assert.ok(mission.result.length > 40, mission.id);
+        assert.doesNotMatch(mission.result, /^(Проверить|Изучить|Достичь|Выполнить|Отработать)\b/, mission.id);
+    });
+});
 test('миссии распределены по пяти утверждённым группам', () => {
     const counts = Object.fromEntries(schema.ENUMS.category.map((category) => [category, 0]));
     missions.forEach((mission) => { counts[mission.category] += 1; });

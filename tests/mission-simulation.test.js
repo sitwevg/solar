@@ -36,6 +36,22 @@ test('ракета стартует и возвращается к границ�
     });
 });
 
+test('угловое движение равномерно, а возвращение идёт по касательной', () => {
+    readyIds.forEach(id => {
+        const mission = missions.find(item => item.id === id);
+        const samples = [0.2, 0.3, 0.4].map(progress => simulation.positionAtProgress(mission, progress));
+        const firstStep = samples[1].angle - samples[0].angle;
+        const secondStep = samples[2].angle - samples[1].angle;
+        assert.ok(Math.abs(firstStep - secondStep) < 1e-10, `${id}: равномерный угол`);
+
+        const beforeLanding = simulation.positionAtProgress(mission, 0.99);
+        const landing = simulation.positionAtProgress(mission, 1);
+        const tangentialDistance = simulation.EARTH_RADIUS_KM * (landing.angle - beforeLanding.angle);
+        const radialDistance = beforeLanding.radiusKm - landing.radiusKm;
+        assert.ok(tangentialDistance > radialDistance * 2, `${id}: касательное возвращение`);
+    });
+});
+
 test('время сценария движется между реальными датами сегмента', () => {
     const mission = missions.find(item => item.id === 'vostok-1');
     const segment = simulation.orbitalSegment(mission);

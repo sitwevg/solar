@@ -38,12 +38,7 @@
         return new Date(start + (end - start) * clamp(progress, 0, 1));
     }
 
-    function smoothstep(value) {
-        const amount = clamp(value, 0, 1);
-        return amount * amount * (3 - 2 * amount);
-    }
-
-    function orbitPositionAtAngle(segment, angle) {
+    function orbitRadiusAtAngle(segment, angle) {
         const orbit = segment.orbit;
         const perigee = EARTH_RADIUS_KM + orbit.perigeeKm;
         const apogee = EARTH_RADIUS_KM + orbit.apogeeKm;
@@ -51,35 +46,24 @@
         const eccentricity = (apogee - perigee) / (apogee + perigee);
         const startAngle = (orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
         const anomaly = angle - startAngle;
-        const radius = semiMajor * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(anomaly));
+        return semiMajor * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(anomaly));
+    }
+
+    function positionAtAngleAndRadius(segment, angle, radius, phase) {
+        const orbit = segment.orbit;
         const inclination = orbit.inclinationDeg * Math.PI / 180;
-        return {
+        return Object.freeze({
             x: radius * Math.cos(angle),
             y: radius * Math.sin(angle) * Math.cos(inclination),
             z: radius * Math.sin(angle) * Math.sin(inclination),
             angle,
-            radiusKm: radius
-        };
+            radiusKm: radius,
+            ...(phase ? { phase } : {})
+        });
     }
 
-    function interpolatePosition(start, end, amount, phase) {
-        const eased = smoothstep(amount);
-        const rawX = start.x + (end.x - start.x) * eased;
-        const rawY = start.y + (end.y - start.y) * eased;
-        const rawZ = start.z + (end.z - start.z) * eased;
-        const startRadius = Math.hypot(start.x, start.y, start.z);
-        const endRadius = Math.hypot(end.x, end.y, end.z);
-        const intendedRadius = startRadius + (endRadius - startRadius) * eased;
-        const rawRadius = Math.max(1, Math.hypot(rawX, rawY, rawZ));
-        const x = rawX / rawRadius * intendedRadius;
-        const y = rawY / rawRadius * intendedRadius;
-        const z = rawZ / rawRadius * intendedRadius;
-        return Object.freeze({
-            x, y, z,
-            angle: Math.atan2(y, x),
-            radiusKm: Math.hypot(x, y, z),
-            phase
-        });
+    function orbitPositionAtAngle(segment, angle) {
+        return positionAtAngleAndRadius(segment, angle, orbitRadiusAtAngle(segment, angle));
     }
 
     function returnProgress(mission) {
@@ -94,39 +78,26 @@
         if (!segment) return null;
         const orbit = segment.orbit;
         const shownProgress = clamp(progress, 0, 1);
-        const launchEnd = clamp(orbit.launchProgress ?? 0.1, 0.05, 0.2);
+        const launchEnd = clamp(orbit.launchProgress ?? 0.08, 0.02, 0.16);
         const returnStart = Math.max(launchEnd + 0.35, returnProgress(mission));
         const startAngle = (orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
-        const landingAngle = (orbit.landingAngleDeg ?? orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
-        const orbitStart = orbitPositionAtAngle(segment, startAngle);
-        const launchSurface = {
-            x: EARTH_RADIUS_KM * Math.cos(startAngle),
-            y: EARTH_RADIUS_KM * Math.sin(startAngle),
-            z: 0
-        };
+        const angularRate = Math.PI * 2 * orbit.displayOrbits;
+        const angle = startAngle + angularRate * shownProgress;
+        const orbitalRadius = orbitRadiusAtAngle(segment, angle);
 
         if (shownProgress <= launchEnd) {
-            return interpolatePosition(launchSurface, orbitStart, shownProgress / launchEnd, 'launch');
+            const radius = EARTH_RADIUS_KM
+                + (orbitalRadius - EARTH_RADIUS_KM) * shownProgress / launchEnd;
+            return positionAtAngleAndRadius(segment, angle, radius, 'launch');
         }
 
         if (shownProgress < returnStart) {
-            const orbitProgress = (shownProgress - launchEnd) / (returnStart - launchEnd);
-            const angle = startAngle + orbitProgress * Math.PI * 2 * orbit.displayOrbits;
-            return Object.freeze({ ...orbitPositionAtAngle(segment, angle), phase: 'orbit' });
+            return positionAtAngleAndRadius(segment, angle, orbitalRadius, 'orbit');
         }
 
-        const orbitEnd = orbitPositionAtAngle(segment, startAngle + Math.PI * 2 * orbit.displayOrbits);
-        const landingSurface = {
-            x: EARTH_RADIUS_KM * Math.cos(landingAngle),
-            y: EARTH_RADIUS_KM * Math.sin(landingAngle),
-            z: 0
-        };
-        return interpolatePosition(
-            orbitEnd,
-            landingSurface,
-            (shownProgress - returnStart) / (1 - returnStart),
-            'return'
-        );
+        const descent = (shownProgress - returnStart) / (1 - returnStart);
+        const radius = EARTH_RADIUS_KM + (orbitalRadius - EARTH_RADIUS_KM) * (1 - descent);
+        return positionAtAngleAndRadius(segment, angle, radius, 'return');
     }
 
     function orbitPath(mission, sampleCount = 160) {

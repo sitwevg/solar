@@ -74,7 +74,8 @@ test('семантический зум удерживает маркеры и �
 test('карточки разделяют пояс Койпера и более далёкие области', () => {
     assert.match(html, /name: 'Пояс Койпера \(30–55 а\.е\.\)'/);
     assert.match(html, /distantRegions: \{/);
-    assert.match(html, /'За гелиопаузой: дальние области →'/);
+    assert.match(html, /'За гелиопаузой: дальние области'/);
+    assert.doesNotMatch(html, /'За гелиопаузой: дальние области →'/);
     assert.match(html, /const uiScale = 1 \/ Math\.max\(0\.01, viewScale\)/);
     assert.match(html, /облаком Хиллса/);
     assert.doesNotMatch(html, /Пояс Койпера[^]*?продолжается почти до 1 000 а\.е\./);
@@ -85,7 +86,9 @@ test('главный пояс астероидов нарисован между
     assert.match(html, /const ASTEROID_BELT_OUTER_AU = 3\.2/);
     assert.match(html, /Array\.from\(\{ length: 520 \}/);
     assert.match(html, /asteroidBelt: \{/);
-    assert.match(html, /'Главный пояс астероидов →'/);
+    assert.match(html, /'Главный пояс астероидов'/);
+    assert.doesNotMatch(html, /'Главный пояс астероидов →'/);
+    assert.match(html, /'Главный пояс астероидов',[\s\S]+?'rgba\(199, 215, 255, 0\.78\)'/);
     assert.match(html, /FEATURE_INFO\.asteroidBelt/);
 });
 

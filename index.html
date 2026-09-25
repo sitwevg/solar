@@ -9,11 +9,11 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.3.0"></script>
-  <script src="src/data/missions.js?v=0.3.0"></script>
+  <script src="src/core/mission-schema.js?v=0.3.1"></script>
+  <script src="src/data/missions.js?v=0.3.1"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.2.0"></script>
+  <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.1">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.2.0">
@@ -1321,8 +1321,8 @@
       const rOuter = auToPx(ASTEROID_BELT_OUTER_AU);
       const labelPoint = projectAtPixelRadius(0, 1, 0, (rInner + rOuter) / 2);
       drawFeatureLabel(
-        'Главный пояс астероидов →', labelPoint.x, labelPoint.y - 9 / viewScale,
-        '9px sans-serif', 'rgba(225, 195, 154, 0.82)', FEATURE_INFO.asteroidBelt
+        'Главный пояс астероидов', labelPoint.x, labelPoint.y - 9 / viewScale,
+        '9px sans-serif', 'rgba(199, 215, 255, 0.78)', FEATURE_INFO.asteroidBelt
       );
     }
 
@@ -1388,7 +1388,7 @@
       );
       const topSafeY = screenToWorld(0, 34).y;
       drawFeatureLabel(
-        'За гелиопаузой: дальние области →', labelPoint.x, Math.max(labelPoint.y - 32 / viewScale, topSafeY),
+        'За гелиопаузой: дальние области', labelPoint.x, Math.max(labelPoint.y - 32 / viewScale, topSafeY),
         '10px sans-serif', 'rgba(199, 215, 255, 0.78)', FEATURE_INFO.distantRegions
       );
     }
@@ -2072,7 +2072,7 @@
       });
       const ending = document.createElement('div');
       ending.className = 'mission-story-ending';
-      ending.textContent = `${missionSimulationApi.outcomeLabel(mission.status)}. ${mission.objective}`;
+      ending.textContent = `${missionSimulationApi.outcomeLabel(mission.status)}. ${mission.result}`;
       story.replaceChildren(title, lead, ...paragraphs, ending);
       story.style.transform = 'translateY(0)';
     }
@@ -2106,8 +2106,8 @@
       const visualWidth = width - storyWidth;
       const centerX = visualWidth / 2;
       const centerY = mobile ? height * .43 : height * .58;
-      const earthRadius = Math.max(72, Math.min(126, visualWidth * .24, height * (mobile ? .14 : .2)));
-      const moonOrbitRadius = Math.min(visualWidth * .46, height * (mobile ? .31 : .42));
+      const earthRadius = Math.max(78, Math.min(156, visualWidth * .28, height * (mobile ? .15 : .22)));
+      const moonOrbitRadius = Math.max(earthRadius * 3.15, visualWidth * .52, height * (mobile ? .32 : .46));
       const moonRadius = Math.max(18, earthRadius * 3474 / 12742);
       const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
       let moonAngle = -2.35;
@@ -2141,16 +2141,14 @@
 
       const path = missionSimulationApi.orbitPath(activeMission);
       const segment = missionSimulationApi.orbitalSegment(activeMission);
-      const maximumOrbitRadius = Math.min(visualWidth * .44, height * (mobile ? .23 : .34));
-      const altitudeRoom = Math.max(34, maximumOrbitRadius - earthRadius);
+      const altitudeRoom = Math.max(24, Math.min(44, earthRadius * .28));
       const maximumAltitude = Math.max(1, segment.orbit.apogeeKm);
       const screenPoint = point => {
-        const planarRadius = Math.max(1, Math.hypot(point.x, point.y));
         const altitude = Math.max(0, point.radiusKm - missionSimulationApi.EARTH_RADIUS_KM);
-        const radius = earthRadius + Math.sqrt(Math.min(1, altitude / maximumAltitude)) * altitudeRoom;
+        const radius = earthRadius + Math.min(1, altitude / maximumAltitude) * altitudeRoom;
         return {
-          x: centerX + point.x / planarRadius * radius,
-          y: centerY + point.y / planarRadius * radius
+          x: centerX + Math.cos(point.angle) * radius,
+          y: centerY + Math.sin(point.angle) * radius
         };
       };
 
@@ -2276,8 +2274,8 @@
       document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
       const segment = missionSimulationApi.orbitalSegment(mission);
       document.getElementById('mission-simulation-note').textContent = segment.orbit.returnMode === 'burn-up'
-        ? `Показаны ${segment.orbit.displayOrbits} опорных витка; месяцы миссии сжаты до длины рассказа.`
-        : 'Траектория и высота орбиты увеличены для наглядности; события идут по исторической хронологии.';
+        ? `Показаны ${segment.orbit.displayOrbits} опорных витка; скорость анимации выровнена, месяцы миссии сжаты до длины рассказа.`
+        : 'Траектория и высота орбиты увеличены для наглядности; скорость анимации выровнена, события идут по исторической хронологии.';
       document.getElementById('mission-simulation-pause').textContent = '⏸ Пауза';
       document.getElementById('mission-complete').classList.remove('open');
       document.getElementById('mission-complete').setAttribute('aria-hidden', 'true');
