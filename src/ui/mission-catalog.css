@@ -87,6 +87,7 @@
 .mission-detail-section { margin-top:24px; }
 .mission-detail-section h3 { margin-bottom:9px; color:rgba(230,236,255,.86); font-size:13px; }
 .mission-detail-section p { color:rgba(230,236,255,.58); font-size:13px; line-height:1.65; }
+.mission-story-paragraph + .mission-story-paragraph { margin-top:10px; }
 #mission-event-list { margin-left:5px; border-left:1px solid rgba(135,160,255,.22); list-style:none; }
 .mission-event { position:relative; padding:0 0 14px 16px; }
 .mission-event::before { content:''; position:absolute; left:-4px; top:4px; width:7px; height:7px; border-radius:50%; background:#86a7ff; box-shadow:0 0 9px rgba(105,145,255,.6); }

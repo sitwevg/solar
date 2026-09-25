@@ -10,6 +10,13 @@ test('исторический каталог содержит 20 уникаль
     assert.equal(new Set(missions.map((mission) => mission.id)).size, 20);
     assert.deepEqual(schema.validateCatalog(missions), { valid: true, errors: [] });
 });
+
+test('каждая миссия содержит полноценный рассказ из двух абзацев', () => {
+    missions.forEach((mission) => {
+        assert.equal(mission.story.length, 2, mission.id);
+        mission.story.forEach((paragraph) => assert.ok(paragraph.length >= 180, `${mission.id}: слишком короткий абзац`));
+    });
+});
 test('миссии распределены по пяти утверждённым группам', () => {
     const counts = Object.fromEntries(schema.ENUMS.category.map((category) => [category, 0]));
     missions.forEach((mission) => { counts[mission.category] += 1; });
@@ -62,6 +69,10 @@ test('схема заранее принимает жизненный цикл �
         countries: ['Пример страны'],
         summary: 'Тест расширяемости схемы.',
         objective: 'Проверить поддержку будущего раздела станций.',
+        story: [
+            'Первый содержательный абзац тестовой истории будущей станции, описывающий её появление, назначение и место в общей хронологии проекта.',
+            'Второй содержательный абзац тестовой истории будущей станции, объясняющий результаты работы, значение эксперимента и дальнейшее развитие.'
+        ],
         scales: ['earth-orbit'],
         targets: [{ id: 'earth', name: 'Земля', type: 'earth', role: 'primary' }],
         events: [{ id: 'launch', type: 'launch', date: '2000-01-01', title: 'Начало сборки' }],

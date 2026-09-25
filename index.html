@@ -9,12 +9,12 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.1.0"></script>
-  <script src="src/data/missions.js?v=0.1.0"></script>
+  <script src="src/core/mission-schema.js?v=0.1.1"></script>
+  <script src="src/data/missions.js?v=0.1.1"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.1"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
-  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.0">
+  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -444,6 +444,10 @@
           <section class="mission-detail-section">
             <h3>Ключевые события</h3>
             <ol id="mission-event-list"></ol>
+          </section>
+          <section class="mission-detail-section">
+            <h3>История миссии</h3>
+            <div id="mission-story"></div>
           </section>
           <section class="mission-detail-section">
             <h3>Источники</h3>
@@ -1779,6 +1783,12 @@
           missionElement('div', 'mission-event-title', event.title)
         );
         events.append(item);
+      });
+
+      const story = document.getElementById('mission-story');
+      story.replaceChildren();
+      mission.story.forEach(paragraph => {
+        story.append(missionElement('p', 'mission-story-paragraph', paragraph));
       });
 
       const sources = document.getElementById('mission-source-list');

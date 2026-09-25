@@ -237,6 +237,10 @@
         requireEnum(mission.scenarioType, 'scenarioType', `${path}.scenarioType`, errors);
         requireString(mission.summary, `${path}.summary`, errors);
         requireString(mission.objective, `${path}.objective`, errors);
+        requireStringArray(mission.story, `${path}.story`, errors);
+        if (Array.isArray(mission.story) && mission.story.length !== 2) {
+            pushError(errors, `${path}.story`, 'ожидалось ровно два абзаца');
+        }
 
         if (!isIsoDate(mission.launchDate)) pushError(errors, `${path}.launchDate`, 'ожидалась дата ISO 8601');
         if (mission.endDate !== null && !isIsoDate(mission.endDate)) {
