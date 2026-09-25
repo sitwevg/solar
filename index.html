@@ -1347,9 +1347,8 @@
       const rInner = auToPx(30), rOuter = auToPx(55);
       const rLabel = (rInner + rOuter) / 2;
       const labelPoint = projectAtPixelRadius(0, 1, 0, rLabel);
-      const topSafeY = screenToWorld(0, 58).y;
       drawFeatureLabel(
-        'Пояс Койпера', labelPoint.x, Math.max(labelPoint.y - 18 / viewScale, topSafeY),
+        'Пояс Койпера', labelPoint.x, labelPoint.y - 18 / viewScale,
         '9px sans-serif', 'rgba(180, 210, 255, 0.58)', FEATURE_INFO.kuiper
       );
     }
@@ -1386,9 +1385,8 @@
         'Гелиопауза ~120 а.е.', labelPoint.x, labelPoint.y - 6,
         '10px sans-serif', 'rgba(210, 230, 255, 0.68)', FEATURE_INFO.heliopause
       );
-      const topSafeY = screenToWorld(0, 34).y;
       drawFeatureLabel(
-        'За гелиопаузой: дальние области', labelPoint.x, Math.max(labelPoint.y - 32 / viewScale, topSafeY),
+        'За гелиопаузой: дальние области', labelPoint.x, labelPoint.y - 32 / viewScale,
         '10px sans-serif', 'rgba(199, 215, 255, 0.78)', FEATURE_INFO.distantRegions
       );
     }

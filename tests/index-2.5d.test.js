@@ -76,6 +76,9 @@ test('карточки разделяют пояс Койпера и более 
     assert.match(html, /distantRegions: \{/);
     assert.match(html, /'За гелиопаузой: дальние области'/);
     assert.doesNotMatch(html, /'За гелиопаузой: дальние области →'/);
+    assert.match(html, /'Пояс Койпера', labelPoint\.x, labelPoint\.y - 18 \/ viewScale/);
+    assert.match(html, /'За гелиопаузой: дальние области', labelPoint\.x, labelPoint\.y - 32 \/ viewScale/);
+    assert.doesNotMatch(html, /Math\.max\(labelPoint\.y - (?:18|32) \/ viewScale, topSafeY\)/);
     assert.match(html, /const uiScale = 1 \/ Math\.max\(0\.01, viewScale\)/);
     assert.match(html, /облаком Хиллса/);
     assert.doesNotMatch(html, /Пояс Койпера[^]*?продолжается почти до 1 000 а\.е\./);
