@@ -16,7 +16,7 @@
   <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.2">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.2.1">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -473,12 +473,6 @@
       </div>
       <div id="mission-accuracy"></div>
     </header>
-    <div id="mission-simulation-status">
-      <div id="mission-simulation-event-time"></div>
-      <div id="mission-simulation-event"></div>
-      <div id="mission-simulation-event-description"></div>
-      <div id="mission-simulation-note">Число показанных витков уменьшено, высота орбиты передана схематически.</div>
-    </div>
     <aside id="mission-story-panel" aria-label="Рассказ о миссии">
       <div id="mission-story-heading">История миссии</div>
       <div id="mission-story-viewport">
@@ -498,6 +492,10 @@
     </div>
     <aside id="mission-vehicle-info" aria-hidden="true">
       <button class="mission-icon-btn" id="mission-vehicle-close" type="button" aria-label="Закрыть информацию">×</button>
+      <figure id="mission-vehicle-figure">
+        <img id="mission-vehicle-image" alt="" decoding="async">
+        <figcaption>Учебная иллюстрация аппарата</figcaption>
+      </figure>
       <h3 id="mission-vehicle-name"></h3>
       <div id="mission-vehicle-type"></div>
       <div id="mission-vehicle-mass"></div>
@@ -2076,18 +2074,33 @@
       const story = document.getElementById('mission-story-scroll');
       const title = document.createElement('h2');
       title.textContent = mission.name;
-      const lead = document.createElement('p');
-      lead.className = 'mission-story-lead';
-      lead.textContent = mission.summary;
-      const paragraphs = mission.story.map(text => {
+      const narrative = mission.simulationStory || mission.story;
+      const content = [title];
+      narrative.forEach((text, index) => {
+        mission.events
+          .filter(event => Math.min(narrative.length - 1, Math.floor((event.simulationProgress ?? 0) * narrative.length)) === index)
+          .forEach(event => {
+            const milestone = document.createElement('section');
+            milestone.className = 'mission-story-milestone';
+            milestone.dataset.eventId = event.id;
+            const time = document.createElement('time');
+            time.textContent = missionSimulationApi.formatUtcDateTime(new Date(event.date));
+            const heading = document.createElement('h3');
+            heading.textContent = event.title;
+            const description = document.createElement('p');
+            description.textContent = event.description || '';
+            milestone.append(time, heading, description);
+            content.push(milestone);
+          });
         const paragraph = document.createElement('p');
+        paragraph.className = 'mission-story-paragraph';
         paragraph.textContent = text;
-        return paragraph;
+        content.push(paragraph);
       });
       const ending = document.createElement('div');
       ending.className = 'mission-story-ending';
       ending.textContent = `${missionSimulationApi.outcomeLabel(mission.status)}. ${mission.result}`;
-      story.replaceChildren(title, lead, ...paragraphs, ending);
+      story.replaceChildren(...content, ending);
       story.style.transform = 'translateY(0)';
     }
 
@@ -2098,8 +2111,7 @@
       const narrativeProgress = Math.max(0, Math.min(1, progress / returnAt));
       const startY = viewport.clientHeight * .58;
       const endY = -story.scrollHeight - 8;
-      const eased = narrativeProgress * narrativeProgress * (3 - 2 * narrativeProgress);
-      story.style.transform = `translateY(${startY + (endY - startY) * eased}px)`;
+      story.style.transform = `translateY(${startY + (endY - startY) * narrativeProgress}px)`;
     }
 
     function drawMissionSimulation(progress, timestamp) {
@@ -2119,7 +2131,7 @@
       const storyWidth = mobile ? 0 : Math.min(360, width * .34) + 32;
       const visualWidth = width - storyWidth;
       const centerX = visualWidth / 2;
-      const centerY = mobile ? height * .43 : height * .58;
+      const centerY = mobile ? height * .33 : height * .5;
       const earthRadius = Math.max(78, Math.min(156, visualWidth * .28, height * (mobile ? .15 : .22)));
       const moonOrbitRadius = Math.max(earthRadius * 3.15, visualWidth * .52, height * (mobile ? .32 : .46));
       const moonRadius = Math.max(18, earthRadius * 3474 / 12742);
@@ -2240,11 +2252,9 @@
       const event = missionSimulationApi.currentEventAtProgress(activeMission, progress);
       simTime = date;
       document.getElementById('mission-simulation-date').textContent = missionSimulationApi.formatUtcDateTime(date);
-      document.getElementById('mission-simulation-event-time').textContent = event
-        ? missionSimulationApi.formatUtcDateTime(new Date(event.date))
-        : '';
-      document.getElementById('mission-simulation-event').textContent = event?.title || 'Полёт продолжается';
-      document.getElementById('mission-simulation-event-description').textContent = event?.description || activeMission.summary;
+      document.querySelectorAll('.mission-story-milestone').forEach(element => {
+        element.classList.toggle('current', element.dataset.eventId === event?.id);
+      });
       updateMissionStory(progress);
       drawMissionSimulation(progress, timestamp);
 
@@ -2266,15 +2276,22 @@
       document.getElementById('mission-vehicle-name').textContent = vehicle.name;
       document.getElementById('mission-vehicle-type').textContent = vehicle.type;
       document.getElementById('mission-vehicle-mass').textContent = `Масса: ${vehicle.massKg.toLocaleString('ru-RU')} кг`;
+      const image = document.getElementById('mission-vehicle-image');
+      image.src = vehicle.image;
+      image.alt = vehicle.imageAlt;
       const facts = document.getElementById('mission-vehicle-facts');
       facts.replaceChildren(...vehicle.facts.map(fact => missionElement('li', '', fact)));
       document.getElementById('mission-vehicle-info').classList.add('open');
       document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'false');
+      missionSimulation.classList.add('vehicle-open');
+      document.getElementById('mission-story-panel').setAttribute('aria-hidden', 'true');
     }
 
     function closeMissionVehicle() {
       document.getElementById('mission-vehicle-info').classList.remove('open');
       document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'true');
+      missionSimulation.classList.remove('vehicle-open');
+      document.getElementById('mission-story-panel').setAttribute('aria-hidden', 'false');
     }
 
     function startMissionSimulation(mission) {
@@ -2288,10 +2305,6 @@
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
       document.getElementById('mission-simulation-name').textContent = mission.name;
       document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
-      const segment = missionSimulationApi.orbitalSegment(mission);
-      document.getElementById('mission-simulation-note').textContent = segment.orbit.returnMode === 'burn-up'
-        ? `Показаны ${segment.orbit.displayOrbits} опорных витка; скорость анимации выровнена, месяцы миссии сжаты до длины рассказа.`
-        : 'Траектория и высота орбиты увеличены для наглядности; скорость анимации выровнена, события идут по исторической хронологии.';
       missionProgress.value = '0';
       missionProgress.setAttribute('aria-valuetext', '0%');
       setMissionSimulationPaused(true);

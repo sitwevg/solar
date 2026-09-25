@@ -27,7 +27,9 @@
         const segment = orbitalSegment(mission);
         if (!segment) return 0;
         const days = Math.max(1 / 24, (Date.parse(segment.endDate) - Date.parse(segment.startDate)) / 86400000);
-        return Math.round(clamp(46 + Math.log10(days + 1) * 14, 46, 82));
+        const storyCharacters = (mission.simulationStory || mission.story || []).join(' ').length;
+        const readingSeconds = storyCharacters / 15;
+        return Math.round(clamp(Math.max(82 + Math.log10(days + 1) * 12, readingSeconds), 82, 150));
     }
 
     function missionDateAtProgress(mission, progress) {

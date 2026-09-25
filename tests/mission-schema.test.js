@@ -18,6 +18,15 @@ test('каждая миссия содержит полноценный расс
     });
 });
 
+test('готовые симуляции имеют отдельный расширенный рассказ и иллюстрацию аппарата', () => {
+    missions.filter((mission) => mission.dataStatus === 'trajectory-ready').forEach((mission) => {
+        assert.ok(mission.simulationStory.length >= 4 && mission.simulationStory.length <= 6, mission.id);
+        mission.simulationStory.forEach((paragraph) => assert.ok(paragraph.length >= 120, `${mission.id}: короткий фрагмент`));
+        assert.match(mission.vehicle.image, /^spacecraft\/.+\.png$/);
+        assert.ok(mission.vehicle.imageAlt.length > 10);
+    });
+});
+
 test('готовые симуляции содержат сформулированный результат, а не повтор цели', () => {
     missions.filter((mission) => mission.dataStatus === 'trajectory-ready').forEach((mission) => {
         assert.ok(mission.result.length > 40, mission.id);

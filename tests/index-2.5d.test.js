@@ -116,8 +116,7 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /simulate\.disabled = !ready/);
     assert.match(html, /solar:mission-simulation-request/);
     assert.match(html, /id="mission-simulation"[^>]+aria-hidden="true"/);
-    assert.match(html, /id="mission-simulation-event-time"/);
-    assert.match(html, /id="mission-simulation-event-description"/);
+    assert.doesNotMatch(html, /id="mission-simulation-status"/);
     assert.match(html, /id="mission-story-panel"/);
     assert.match(html, /id="mission-story-scroll"/);
     assert.match(html, /id="mission-progress" type="range" min="0" max="1000"/);
@@ -131,6 +130,8 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /getImg\('planets\/earth\.png'\)/);
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
+    assert.match(html, /id="mission-vehicle-image"/);
+    assert.match(html, /missionSimulation\.classList\.add\('vehicle-open'\)/);
     assert.match(html, /Полёт завершён/);
     assert.match(html, /simTime = new Date\(\)/);
 });

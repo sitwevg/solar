@@ -253,6 +253,8 @@
             pushError(errors, `${path}.massKg`, 'ожидалось положительное число');
         }
         requireStringArray(vehicle.facts, `${path}.facts`, errors);
+        requireString(vehicle.image, `${path}.image`, errors);
+        requireString(vehicle.imageAlt, `${path}.imageAlt`, errors);
     }
 
     function validateUniqueIds(items, path, errors) {
@@ -331,6 +333,11 @@
         if (mission.dataStatus === 'trajectory-ready' || mission.dataStatus === 'published') {
             validateVehicle(mission.vehicle, `${path}.vehicle`, errors);
             requireString(mission.result, `${path}.result`, errors);
+            requireStringArray(mission.simulationStory, `${path}.simulationStory`, errors);
+            if (Array.isArray(mission.simulationStory)
+                && (mission.simulationStory.length < 4 || mission.simulationStory.length > 6)) {
+                pushError(errors, `${path}.simulationStory`, 'ожидалось от четырёх до шести фрагментов');
+            }
         }
         return errors;
     }
