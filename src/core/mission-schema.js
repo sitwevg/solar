@@ -150,6 +150,10 @@
         requireEnum(event.type, 'eventType', `${path}.type`, errors);
         requireString(event.title, `${path}.title`, errors);
         if (!isIsoDate(event.date)) pushError(errors, `${path}.date`, 'ожидалась дата ISO 8601');
+        if (event.simulationProgress !== undefined
+            && (!Number.isFinite(event.simulationProgress) || event.simulationProgress < 0 || event.simulationProgress > 1)) {
+            pushError(errors, `${path}.simulationProgress`, 'ожидалось число от 0 до 1');
+        }
     }
 
     function validateSource(source, path, errors) {
@@ -202,12 +206,39 @@
             }
             requireString(segment.id, `${segmentPath}.id`, errors);
             requireEnum(segment.frame || trajectory.frame, 'frame', `${segmentPath}.frame`, errors);
+            if (segment.model === 'elliptic-orbit') {
+                if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
+                if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
+                const orbit = segment.orbit;
+                if (!isPlainObject(orbit)) {
+                    pushError(errors, `${segmentPath}.orbit`, 'ожидались параметры орбиты');
+                } else {
+                    ['perigeeKm', 'apogeeKm', 'inclinationDeg', 'periodMinutes', 'displayOrbits'].forEach((field) => {
+                        if (!Number.isFinite(orbit[field]) || orbit[field] <= 0) {
+                            pushError(errors, `${segmentPath}.orbit.${field}`, 'ожидалось положительное число');
+                        }
+                    });
+                }
+            }
             if (!Array.isArray(segment.points) || segment.points.length < 2) {
                 pushError(errors, `${segmentPath}.points`, 'сегмент должен содержать не менее двух XYZ-точек');
                 return;
             }
             segment.points.forEach((point, pointIndex) => validatePoint(point, `${segmentPath}.points[${pointIndex}]`, errors));
         });
+    }
+
+    function validateVehicle(vehicle, path, errors) {
+        if (!isPlainObject(vehicle)) {
+            pushError(errors, path, 'ожидалась карточка аппарата');
+            return;
+        }
+        requireString(vehicle.name, `${path}.name`, errors);
+        requireString(vehicle.type, `${path}.type`, errors);
+        if (!Number.isFinite(vehicle.massKg) || vehicle.massKg <= 0) {
+            pushError(errors, `${path}.massKg`, 'ожидалось положительное число');
+        }
+        requireStringArray(vehicle.facts, `${path}.facts`, errors);
     }
 
     function validateUniqueIds(items, path, errors) {
@@ -282,6 +313,9 @@
         }
 
         validateTrajectory(mission.trajectory, `${path}.trajectory`, errors);
+        if (mission.dataStatus === 'trajectory-ready' || mission.dataStatus === 'published') {
+            validateVehicle(mission.vehicle, `${path}.vehicle`, errors);
+        }
         return errors;
     }
 

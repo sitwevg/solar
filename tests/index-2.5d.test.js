@@ -97,4 +97,8 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /missionCatalogApi\.filterByCategory\(SolarMissionCatalog, missionCategory\)/);
     assert.match(html, /simulate\.disabled = !ready/);
     assert.match(html, /solar:mission-simulation-request/);
+    assert.match(html, /id="mission-simulation"[^>]+aria-hidden="true"/);
+    assert.match(html, /id="mission-vehicle-info"/);
+    assert.match(html, /Полёт завершён/);
+    assert.match(html, /simTime = new Date\(\)/);
 });

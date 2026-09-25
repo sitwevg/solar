@@ -25,8 +25,11 @@ test('фильтры совпадают с утверждёнными групп
     assert.equal(view.missionCountLabel(20), '20 миссий');
 });
 
-test('черновые траектории нельзя запускать из каталога', () => {
-    assert.equal(missions.every(mission => !view.isSimulationReady(mission)), true);
+test('из каталога запускаются только четыре подготовленные траектории', () => {
+    assert.deepEqual(
+        missions.filter(view.isSimulationReady).map(mission => mission.id),
+        ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2']
+    );
 
     const ready = structuredClone(missions[0]);
     ready.dataStatus = 'trajectory-ready';

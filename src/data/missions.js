@@ -20,8 +20,24 @@
     if (!schema) throw new Error('SolarMissionSchema должен быть загружен до каталога миссий.');
 
     const target = (id, name, type, role) => ({ id, name, type, role });
-    const event = (id, type, date, title) => ({ id, type, date, title });
+    const event = (id, type, date, title, simulationProgress) => ({
+        id, type, date, title,
+        ...(Number.isFinite(simulationProgress) ? { simulationProgress } : {})
+    });
     const source = (id, label, publisher, url) => ({ id, label, publisher, url });
+    const vehicle = (name, type, massKg, facts) => ({ name, type, massKg, facts });
+    const earthOrbitTrajectory = (startDate, endDate, orbit) => ({
+        accuracy: 'schematic',
+        frame: 'geocentric-ecliptic-j2000',
+        segments: [{
+            id: 'earth-orbit', model: 'elliptic-orbit', frame: 'geocentric-ecliptic-j2000',
+            startDate, endDate, orbit,
+            points: [
+                { date: startDate, x: 6371 + orbit.perigeeKm, y: 0, z: 0 },
+                { date: endDate, x: -(6371 + orbit.apogeeKm), y: 0, z: 0 }
+            ]
+        }]
+    });
 
     function mission(data) {
         return Object.freeze({
@@ -40,6 +56,7 @@
         mission({
             id: 'sputnik-1', name: 'Спутник-1', launchDate: '1957-10-04', endDate: '1958-01-04',
             category: 'early-spaceflight', status: 'success', scenarioType: 'orbital',
+            dataStatus: 'trajectory-ready',
             agencies: ['ОКБ-1'], countries: ['СССР'], scales: ['earth-orbit'], frame: 'geocentric-ecliptic-j2000',
             summary: 'Первый искусственный спутник Земли открыл космическую эру.',
             objective: 'Проверить вывод искусственного спутника на орбиту и исследовать прохождение радиосигнала через ионосферу.',
@@ -47,16 +64,26 @@
                 '«Спутник-1» был предельно простым по устройству: герметичная металлическая сфера диаметром 58 сантиметров, четыре длинные антенны и два радиопередатчика. Аппарат массой 83,6 килограмма не фотографировал Землю и не передавал сложные измерения — его знаменитое «бип-бип» позволяло проверить прохождение радиоволн через ионосферу и убедиться, что спутник действительно находится на орбите.',
                 'Сигнал нового небесного тела слушали радиолюбители по всему миру. Полёт доказал, что ракета способна вывести полезную нагрузку на околоземную орбиту, и стал условной точкой начала космической эры. Передатчики работали около трёх недель, а сам спутник совершал оборот вокруг Земли примерно за полтора часа и сгорел в атмосфере 4 января 1958 года.'
             ],
+            vehicle: vehicle('ПС-1 («Спутник-1»)', 'Автоматический искусственный спутник', 83.6, [
+                'Герметичная алюминиевая сфера диаметром 58 сантиметров.',
+                'Два радиопередатчика работали на частотах 20,005 и 40,002 МГц.',
+                'Период первого витка — около 96 минут; радиосигнал передавался примерно три недели.'
+            ]),
+            trajectory: earthOrbitTrajectory('1957-10-04T19:28:34Z', '1958-01-04T00:00:00Z', {
+                perigeeKm: 215, apogeeKm: 939, inclinationDeg: 65.1, periodMinutes: 96.2,
+                phaseDeg: -28, displayOrbits: 3
+            }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1957-10-04', 'Запуск и выход на орбиту'),
-                event('mission-end', 'mission-end', '1958-01-04', 'Сход с орбиты')
+                event('launch', 'launch', '1957-10-04', 'Запуск и выход на орбиту', 0),
+                event('mission-end', 'mission-end', '1958-01-04', 'Сход с орбиты', 1)
             ],
             sources: [source('nasa-sputnik', 'Sputnik Ushers in the Space Age', 'NASA', 'https://www.nasa.gov/history/65-years-ago-sputnik-ushers-in-the-space-age/')]
         }),
         mission({
             id: 'vostok-1', name: 'Восток-1', launchDate: '1961-04-12', endDate: '1961-04-12',
             category: 'early-spaceflight', status: 'success', scenarioType: 'orbital',
+            dataStatus: 'trajectory-ready',
             agencies: ['ОКБ-1'], countries: ['СССР'], scales: ['earth-orbit'], frame: 'geocentric-ecliptic-j2000',
             summary: 'Первый полёт человека в космос и один оборот вокруг Земли.',
             objective: 'Проверить возможность пребывания человека в космосе и безопасного возвращения.',
@@ -64,16 +91,26 @@
                 '12 апреля 1961 года Юрий Гагарин на корабле «Восток» впервые увидел Землю с орбиты. Полёт продолжался 108 минут и включал один оборот вокруг планеты. Поскольку никто не знал, как человек будет действовать в невесомости, основные операции выполняла автоматика, но космонавт мог получить код и перейти на ручное управление.',
                 'Спускаемый аппарат «Востока» не умел мягко садиться вместе с человеком: на высоте около семи километров Гагарин катапультировался и приземлился на собственном парашюте. Короткая миссия ответила на главный вопрос своего времени — человек способен перенести старт, невесомость и возвращение из космоса — и превратила пилотируемую космонавтику из эксперимента в реальную программу.'
             ],
+            vehicle: vehicle('«Восток» 3КА № 3', 'Одноместный пилотируемый корабль', 4725, [
+                'Корабль состоял из сферического спускаемого аппарата и приборного отсека.',
+                'Орбита имела высоты примерно 181 × 327 километров и наклонение 64,9°.',
+                'Юрий Гагарин совершил один виток; весь полёт продолжался 108 минут.'
+            ]),
+            trajectory: earthOrbitTrajectory('1961-04-12T06:07:00Z', '1961-04-12T07:55:00Z', {
+                perigeeKm: 181, apogeeKm: 327, inclinationDeg: 64.9, periodMinutes: 89.1,
+                phaseDeg: -35, displayOrbits: 1
+            }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1961-04-12', 'Старт Юрия Гагарина'),
-                event('return', 'return', '1961-04-12', 'Возвращение на Землю')
+                event('launch', 'launch', '1961-04-12', 'Старт Юрия Гагарина', 0),
+                event('return', 'return', '1961-04-12', 'Возвращение на Землю', 0.92)
             ],
             sources: [source('nasa-vostok-1', 'Vostok 1', 'NASA', 'https://starchild.gsfc.nasa.gov/docs/StarChild/space_level2/vostok1.html')]
         }),
         mission({
             id: 'vostok-6', name: 'Восток-6', launchDate: '1963-06-16', endDate: '1963-06-19',
             category: 'early-spaceflight', status: 'success', scenarioType: 'orbital',
+            dataStatus: 'trajectory-ready',
             agencies: ['ОКБ-1'], countries: ['СССР'], scales: ['earth-orbit'], frame: 'geocentric-ecliptic-j2000',
             summary: 'Валентина Терешкова стала первой женщиной в космосе.',
             objective: 'Изучить влияние космического полёта на организм и продолжить испытания корабля «Восток».',
@@ -81,16 +118,26 @@
                 'Валентина Терешкова стартовала на «Востоке-6» под позывным «Чайка» и за неполные трое суток совершила 48 оборотов вокруг Земли. Одновременно на орбите находился «Восток-5» Валерия Быковского: корабли не стыковались, но поддерживали радиосвязь и прошли на сравнительно небольшом расстоянии друг от друга.',
                 'Во время полёта Терешкова вела журнал, фотографировала горизонт и участвовала в медицинских наблюдениях, помогавших сравнить реакцию мужского и женского организма на невесомость. Миссия имела и огромное общественное значение: женщина впервые стала самостоятельным пилотом космического корабля. Следующая женщина отправилась в космос лишь через девятнадцать лет.'
             ],
+            vehicle: vehicle('«Восток» 3КА № 8', 'Одноместный пилотируемый корабль', 4713, [
+                'Позывной Валентины Терешковой — «Чайка».',
+                'Корабль выполнил 48 витков за 2 суток 22 часа 50 минут.',
+                'Орбита проходила на высотах примерно 181 × 231 километр с наклонением около 65°.'
+            ]),
+            trajectory: earthOrbitTrajectory('1963-06-16T09:29:52Z', '1963-06-19T08:20:00Z', {
+                perigeeKm: 181, apogeeKm: 231, inclinationDeg: 65, periodMinutes: 88.3,
+                phaseDeg: -18, displayOrbits: 4
+            }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1963-06-16', 'Старт Валентины Терешковой'),
-                event('return', 'return', '1963-06-19', 'Возвращение на Землю')
+                event('launch', 'launch', '1963-06-16', 'Старт Валентины Терешковой', 0),
+                event('return', 'return', '1963-06-19', 'Возвращение на Землю', 0.96)
             ],
             sources: [source('nasa-tereshkova', 'Valentina Tereshkova and Vostok 6', 'NASA', 'https://www.nasa.gov/history/60-years-ago-valentina-tereshkova-becomes-the-first-woman-in-space/')]
         }),
         mission({
             id: 'voskhod-2', name: 'Восход-2', launchDate: '1965-03-18', endDate: '1965-03-19',
             category: 'early-spaceflight', status: 'success', scenarioType: 'orbital',
+            dataStatus: 'trajectory-ready',
             agencies: ['ОКБ-1'], countries: ['СССР'], scales: ['earth-orbit'], frame: 'geocentric-ecliptic-j2000',
             summary: 'Во время полёта Алексей Леонов первым вышел в открытый космос.',
             objective: 'Проверить выход человека из корабля и работу автономного скафандра в вакууме.',
@@ -98,11 +145,20 @@
                 'Для первого выхода в открытый космос к тесному кораблю «Восход-2» прикрепили надувную шлюзовую камеру. Алексей Леонов покинул её 18 марта 1965 года и провёл вне корабля немногим более двенадцати минут. Космонавт был связан с кораблём фалом, а запас кислорода и системы жизнеобеспечения находились в ранце скафандра.',
                 'Эксперимент едва не закончился трагедией: в вакууме скафандр раздулся, и Леонов не мог войти в шлюз. Он снизил давление и, вопреки инструкции, вошёл головой вперёд. Затем отказала автоматическая посадка, экипаж вручную сошёл с орбиты и оказался в заснеженной тайге. Полёт доказал возможность работы снаружи корабля и одновременно показал, насколько опасной может быть внекорабельная деятельность.'
             ],
+            vehicle: vehicle('«Восход-2» 3КД № 4', 'Двухместный пилотируемый корабль', 5682, [
+                'Для выхода в космос использовалась надувная шлюзовая камера «Волга».',
+                'Начальная орбита — примерно 169 × 473 километра, наклонение 64,8°.',
+                'Алексей Леонов находился вне шлюза около 12 минут; полёт продолжался 26 часов.'
+            ]),
+            trajectory: earthOrbitTrajectory('1965-03-18T07:00:00Z', '1965-03-19T09:02:17Z', {
+                perigeeKm: 169, apogeeKm: 473, inclinationDeg: 64.8, periodMinutes: 90.9,
+                phaseDeg: -42, displayOrbits: 2
+            }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1965-03-18', 'Запуск «Восхода-2»'),
-                event('first-eva', 'eva', '1965-03-18', 'Первый выход человека в открытый космос'),
-                event('return', 'return', '1965-03-19', 'Возвращение экипажа')
+                event('launch', 'launch', '1965-03-18', 'Запуск «Восхода-2»', 0),
+                event('first-eva', 'eva', '1965-03-18', 'Первый выход человека в открытый космос', 0.12),
+                event('return', 'return', '1965-03-19', 'Возвращение экипажа', 0.94)
             ],
             sources: [source('nasa-spacewalk-history', 'Spacewalking History', 'NASA', 'https://www.nasa.gov/history/space-station-20th-spacewalking-history/')]
         }),

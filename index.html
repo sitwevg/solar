@@ -9,12 +9,14 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.1.1"></script>
-  <script src="src/data/missions.js?v=0.1.1"></script>
+  <script src="src/core/mission-schema.js?v=0.2.0"></script>
+  <script src="src/data/missions.js?v=0.2.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.1"></script>
+  <script src="src/core/mission-simulation.js?v=0.1.0"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.1">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -458,6 +460,41 @@
         </div>
       </div>
     </article>
+  </section>
+
+  <section id="mission-simulation" aria-hidden="true" aria-label="Симуляция космической миссии">
+    <canvas id="mission-simulation-canvas"></canvas>
+    <header id="mission-simulation-header">
+      <button class="mission-icon-btn" id="mission-simulation-exit" type="button">← Выйти</button>
+      <div id="mission-simulation-title">
+        <div id="mission-simulation-name"></div>
+        <div id="mission-simulation-date"></div>
+      </div>
+      <div id="mission-accuracy"></div>
+    </header>
+    <div id="mission-simulation-status">
+      <div id="mission-simulation-event"></div>
+      <div id="mission-simulation-note">Число показанных витков уменьшено, высота орбиты передана схематически.</div>
+    </div>
+    <div id="mission-simulation-controls">
+      <button class="mission-sim-button" id="mission-simulation-pause" type="button">⏸ Пауза</button>
+      <button class="mission-sim-button" id="mission-vehicle-button" type="button">● Об аппарате</button>
+    </div>
+    <aside id="mission-vehicle-info" aria-hidden="true">
+      <button class="mission-icon-btn" id="mission-vehicle-close" type="button" aria-label="Закрыть информацию">×</button>
+      <h3 id="mission-vehicle-name"></h3>
+      <div id="mission-vehicle-type"></div>
+      <div id="mission-vehicle-mass"></div>
+      <ul id="mission-vehicle-facts"></ul>
+    </aside>
+    <div id="mission-complete" aria-hidden="true">
+      <div id="mission-complete-card">
+        <h2>Полёт завершён</h2>
+        <div id="mission-complete-result"></div>
+        <p>Сценарий завершён. После подтверждения карта вернётся к сегодняшней дате.</p>
+        <button id="mission-complete-confirm" type="button">Вернуться к карте</button>
+      </div>
+    </div>
   </section>
 
   <div id="panel">
@@ -1891,6 +1928,197 @@
       window.dispatchEvent(new CustomEvent('solar:mission-simulation-request', {
         detail: { missionId: selectedMission.id }
       }));
+    });
+
+    // ── Historical mission simulation ───────────────────────────────
+    const missionSimulationApi = SolarMissionSimulation;
+    const missionSimulation = document.getElementById('mission-simulation');
+    const missionSimulationCanvas = document.getElementById('mission-simulation-canvas');
+    const missionSimulationCtx = missionSimulationCanvas.getContext('2d');
+    let activeMission = null;
+    let missionPresentationMs = 0;
+    let missionElapsedMs = 0;
+    let missionLastFrame = null;
+    let missionSimulationPaused = false;
+    let missionSimulationFrame = null;
+    let missionVehicleHit = null;
+
+    function resizeMissionSimulation() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      missionSimulationCanvas.width = Math.round(window.innerWidth * dpr);
+      missionSimulationCanvas.height = Math.round(window.innerHeight * dpr);
+      missionSimulationCanvas.style.width = `${window.innerWidth}px`;
+      missionSimulationCanvas.style.height = `${window.innerHeight}px`;
+      missionSimulationCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function drawMissionSimulation(progress, timestamp) {
+      const ctx = missionSimulationCtx;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      ctx.clearRect(0, 0, width, height);
+
+      for (let index = 0; index < 90; index += 1) {
+        const x = (Math.sin(index * 91.7) * .5 + .5) * width;
+        const y = (Math.sin(index * 47.3 + 2) * .5 + .5) * height;
+        ctx.fillStyle = `rgba(210,225,255,${.12 + (index % 5) * .035})`;
+        ctx.fillRect(x, y, index % 7 === 0 ? 1.6 : 1, index % 7 === 0 ? 1.6 : 1);
+      }
+
+      const centerX = width / 2;
+      const centerY = height / 2 + (width < 540 ? 28 : 18);
+      const earthRadius = Math.max(46, Math.min(72, Math.min(width, height) * .09));
+      const path = missionSimulationApi.orbitPath(activeMission);
+      const maxRadius = Math.max(...path.map(point => Math.hypot(point.x, point.y)));
+      const orbitRadius = Math.min(width * .39, height * .31);
+      const scale = orbitRadius / maxRadius;
+      const rotation = -.24;
+      const screenPoint = point => {
+        const x = point.x * scale;
+        const y = point.y * scale;
+        return {
+          x: centerX + x * Math.cos(rotation) - y * Math.sin(rotation),
+          y: centerY + x * Math.sin(rotation) + y * Math.cos(rotation)
+        };
+      };
+
+      ctx.beginPath();
+      path.forEach((point, index) => {
+        const screen = screenPoint(point);
+        if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
+      });
+      ctx.strokeStyle = 'rgba(104,145,255,.28)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      const earthGlow = ctx.createRadialGradient(centerX, centerY, earthRadius * .2, centerX, centerY, earthRadius * 1.7);
+      earthGlow.addColorStop(0, '#5ca8ff');
+      earthGlow.addColorStop(.45, '#206bd0');
+      earthGlow.addColorStop(.62, '#0a2e74');
+      earthGlow.addColorStop(1, 'rgba(15,68,166,0)');
+      ctx.fillStyle = earthGlow;
+      ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius * 1.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#216ed3';
+      ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(102,190,151,.68)';
+      ctx.beginPath();
+      ctx.ellipse(centerX - earthRadius * .18, centerY - earthRadius * .08, earthRadius * .43, earthRadius * .19, -.4, 0, Math.PI * 2);
+      ctx.ellipse(centerX + earthRadius * .28, centerY + earthRadius * .2, earthRadius * .28, earthRadius * .13, .7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(232,242,255,.72)';
+      ctx.font = '600 12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Земля', centerX, centerY + earthRadius + 22);
+
+      const position = missionSimulationApi.positionAtProgress(activeMission, progress);
+      const vehicle = screenPoint(position);
+      const pulse = 1 + Math.sin(timestamp / 180) * .15;
+      ctx.shadowBlur = 22 * pulse; ctx.shadowColor = '#ffd26f';
+      ctx.fillStyle = '#fff3b0';
+      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 5.5 * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,222,126,.32)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 12 * pulse, 0, Math.PI * 2); ctx.stroke();
+      missionVehicleHit = { x: vehicle.x, y: vehicle.y, radius: 24 };
+    }
+
+    function updateMissionSimulation(timestamp) {
+      if (!activeMission) return;
+      if (missionLastFrame === null) missionLastFrame = timestamp;
+      if (!missionSimulationPaused) missionElapsedMs += timestamp - missionLastFrame;
+      missionLastFrame = timestamp;
+      const progress = Math.min(1, missionElapsedMs / missionPresentationMs);
+      const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
+      const event = missionSimulationApi.currentEventAtProgress(activeMission, progress);
+      simTime = date;
+      document.getElementById('mission-simulation-date').textContent = missionSimulationApi.formatUtcDateTime(date);
+      document.getElementById('mission-simulation-event').textContent = event?.title || 'Полёт продолжается';
+      drawMissionSimulation(progress, timestamp);
+
+      if (progress >= 1) {
+        document.getElementById('mission-complete-result').textContent = missionSimulationApi.outcomeLabel(activeMission.status);
+        document.getElementById('mission-complete').classList.add('open');
+        document.getElementById('mission-complete').setAttribute('aria-hidden', 'false');
+        document.getElementById('mission-complete-confirm').focus();
+        missionSimulationFrame = null;
+        return;
+      }
+      missionSimulationFrame = requestAnimationFrame(updateMissionSimulation);
+    }
+
+    function showMissionVehicle() {
+      if (!activeMission?.vehicle) return;
+      const vehicle = activeMission.vehicle;
+      document.getElementById('mission-vehicle-name').textContent = vehicle.name;
+      document.getElementById('mission-vehicle-type').textContent = vehicle.type;
+      document.getElementById('mission-vehicle-mass').textContent = `Масса: ${vehicle.massKg.toLocaleString('ru-RU')} кг`;
+      const facts = document.getElementById('mission-vehicle-facts');
+      facts.replaceChildren(...vehicle.facts.map(fact => missionElement('li', '', fact)));
+      document.getElementById('mission-vehicle-info').classList.add('open');
+      document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeMissionVehicle() {
+      document.getElementById('mission-vehicle-info').classList.remove('open');
+      document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'true');
+    }
+
+    function startMissionSimulation(mission) {
+      closeMissionDetail();
+      closeMissionCatalog();
+      activeMission = mission;
+      paused = true;
+      updatePauseBtn();
+      missionElapsedMs = 0;
+      missionLastFrame = null;
+      missionSimulationPaused = false;
+      missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
+      document.getElementById('mission-simulation-name').textContent = mission.name;
+      document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
+      document.getElementById('mission-simulation-pause').textContent = '⏸ Пауза';
+      document.getElementById('mission-complete').classList.remove('open');
+      document.getElementById('mission-complete').setAttribute('aria-hidden', 'true');
+      closeMissionVehicle();
+      resizeMissionSimulation();
+      missionSimulation.classList.add('open');
+      missionSimulation.setAttribute('aria-hidden', 'false');
+      document.getElementById('mission-simulation-exit').focus();
+      missionSimulationFrame = requestAnimationFrame(updateMissionSimulation);
+    }
+
+    function exitMissionSimulation() {
+      if (missionSimulationFrame !== null) cancelAnimationFrame(missionSimulationFrame);
+      missionSimulationFrame = null;
+      activeMission = null;
+      missionVehicleHit = null;
+      missionSimulation.classList.remove('open');
+      missionSimulation.setAttribute('aria-hidden', 'true');
+      document.getElementById('mission-complete').classList.remove('open');
+      closeMissionVehicle();
+      simTime = new Date();
+      paused = false;
+      updatePauseBtn();
+      requestAnimationFrame(() => document.getElementById('launch-btn').focus());
+    }
+
+    window.addEventListener('solar:mission-simulation-request', event => {
+      const mission = SolarMissionCatalog.find(item => item.id === event.detail?.missionId);
+      if (mission && missionCatalogApi.isSimulationReady(mission)) startMissionSimulation(mission);
+    });
+    window.addEventListener('resize', () => { if (activeMission) resizeMissionSimulation(); });
+    document.getElementById('mission-simulation-exit').addEventListener('click', exitMissionSimulation);
+    document.getElementById('mission-complete-confirm').addEventListener('click', exitMissionSimulation);
+    document.getElementById('mission-vehicle-button').addEventListener('click', showMissionVehicle);
+    document.getElementById('mission-vehicle-close').addEventListener('click', closeMissionVehicle);
+    document.getElementById('mission-simulation-pause').addEventListener('click', event => {
+      missionSimulationPaused = !missionSimulationPaused;
+      event.currentTarget.textContent = missionSimulationPaused ? '▶ Продолжить' : '⏸ Пауза';
+    });
+    missionSimulationCanvas.addEventListener('click', event => {
+      if (!missionVehicleHit) return;
+      const rect = missionSimulationCanvas.getBoundingClientRect();
+      if (Math.hypot(event.clientX - rect.left - missionVehicleHit.x, event.clientY - rect.top - missionVehicleHit.y) <= missionVehicleHit.radius) {
+        showMissionVehicle();
+      }
     });
 
     // ── Touch / click (main canvas) ───────────────────────────────────

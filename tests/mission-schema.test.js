@@ -88,6 +88,7 @@ test('схема отклоняет дубликаты и готовую тра�
     const broken = structuredClone(missions[1]);
     broken.id = duplicate.id;
     broken.trajectory.accuracy = 'schematic';
+    broken.trajectory.segments = [];
 
     const result = schema.validateCatalog([duplicate, broken]);
     assert.equal(result.valid, false);
