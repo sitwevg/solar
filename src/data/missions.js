@@ -20,9 +20,10 @@
     if (!schema) throw new Error('SolarMissionSchema должен быть загружен до каталога миссий.');
 
     const target = (id, name, type, role) => ({ id, name, type, role });
-    const event = (id, type, date, title, simulationProgress) => ({
+    const event = (id, type, date, title, simulationProgress, description) => ({
         id, type, date, title,
-        ...(Number.isFinite(simulationProgress) ? { simulationProgress } : {})
+        ...(Number.isFinite(simulationProgress) ? { simulationProgress } : {}),
+        ...(description ? { description } : {})
     });
     const source = (id, label, publisher, url) => ({ id, label, publisher, url });
     const vehicle = (name, type, massKg, facts) => ({ name, type, massKg, facts });
@@ -71,12 +72,14 @@
             ]),
             trajectory: earthOrbitTrajectory('1957-10-04T19:28:34Z', '1958-01-04T00:00:00Z', {
                 perigeeKm: 215, apogeeKm: 939, inclinationDeg: 65.1, periodMinutes: 96.2,
-                phaseDeg: -28, displayOrbits: 3
+                phaseDeg: -60, displayOrbits: 3, launchAngleDeg: -60, landingAngleDeg: 135,
+                launchSite: 'Космодром Байконур', returnMode: 'burn-up'
             }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1957-10-04', 'Запуск и выход на орбиту', 0),
-                event('mission-end', 'mission-end', '1958-01-04', 'Сход с орбиты', 1)
+                event('launch', 'launch', '1957-10-04T19:28:34Z', 'Запуск с Байконура', 0, 'Ракета Р-7 вывела первый искусственный спутник с площадки в Казахстане.'),
+                event('radio-end', 'loss-of-contact', '1957-10-26T00:00:00Z', 'Замолчали радиопередатчики', 0.24, 'Батареи исчерпались после примерно трёх недель знаменитых сигналов «бип-бип».'),
+                event('mission-end', 'mission-end', '1958-01-04T00:00:00Z', 'Сгорание в атмосфере', 0.94, 'После трёх месяцев на орбите «Спутник-1» вошёл в атмосферу и сгорел.')
             ],
             sources: [source('nasa-sputnik', 'Sputnik Ushers in the Space Age', 'NASA', 'https://www.nasa.gov/history/65-years-ago-sputnik-ushers-in-the-space-age/')]
         }),
@@ -96,14 +99,18 @@
                 'Орбита имела высоты примерно 181 × 327 километров и наклонение 64,9°.',
                 'Юрий Гагарин совершил один виток; весь полёт продолжался 108 минут.'
             ]),
-            trajectory: earthOrbitTrajectory('1961-04-12T06:07:00Z', '1961-04-12T07:55:00Z', {
+            trajectory: earthOrbitTrajectory('1961-04-12T06:07:00Z', '1961-04-12T08:05:00Z', {
                 perigeeKm: 181, apogeeKm: 327, inclinationDeg: 64.9, periodMinutes: 89.1,
-                phaseDeg: -35, displayOrbits: 1
+                phaseDeg: -60, displayOrbits: 1, launchAngleDeg: -60, landingAngleDeg: 130,
+                launchSite: 'Космодром Байконур', returnMode: 'landing'
             }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1961-04-12', 'Старт Юрия Гагарина', 0),
-                event('return', 'return', '1961-04-12', 'Возвращение на Землю', 0.92)
+                event('launch', 'launch', '1961-04-12T06:07:00Z', '«Поехали!» — старт Юрия Гагарина', 0, '«Восток-1» поднялся с Байконура. Начался первый полёт человека в космос.'),
+                event('orbit', 'orbit-insertion', '1961-04-12T06:17:00Z', 'Выход на орбиту', 0.085, 'Последняя ступень выключилась, корабль отделился и начал единственный виток вокруг Земли.'),
+                event('retrofire', 'return', '1961-04-12T07:25:00Z', 'Тормозной импульс', 0.66, 'Автоматика развернула корабль над западным побережьем Африки и включила тормозной двигатель.'),
+                event('ejection', 'return', '1961-04-12T07:55:00Z', 'Катапультирование', 0.915, 'На высоте около семи километров Гагарин покинул спускаемый аппарат.'),
+                event('landing', 'landing', '1961-04-12T08:05:00Z', 'Приземление Гагарина', 1, 'Космонавт опустился на парашюте в Саратовской области; первый пилотируемый полёт завершился успешно.')
             ],
             sources: [source('nasa-vostok-1', 'Vostok 1', 'NASA', 'https://starchild.gsfc.nasa.gov/docs/StarChild/space_level2/vostok1.html')]
         }),
@@ -125,12 +132,16 @@
             ]),
             trajectory: earthOrbitTrajectory('1963-06-16T09:29:52Z', '1963-06-19T08:20:00Z', {
                 perigeeKm: 181, apogeeKm: 231, inclinationDeg: 65, periodMinutes: 88.3,
-                phaseDeg: -18, displayOrbits: 4
+                phaseDeg: -60, displayOrbits: 4, launchAngleDeg: -60, landingAngleDeg: 118,
+                launchSite: 'Космодром Байконур', returnMode: 'landing'
             }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1963-06-16', 'Старт Валентины Терешковой', 0),
-                event('return', 'return', '1963-06-19', 'Возвращение на Землю', 0.96)
+                event('launch', 'launch', '1963-06-16T09:29:52Z', 'Старт Валентины Терешковой', 0, '«Восток-6» стартовал с Байконура. Позывной первой женщины-космонавта — «Чайка».'),
+                event('joint-flight', 'orbit-insertion', '1963-06-16T11:00:00Z', 'Совместный полёт с «Востоком-5»', 0.022, 'Два корабля поддерживали радиосвязь; стыковка программой не предусматривалась.'),
+                event('observations', 'orbit-insertion', '1963-06-18T00:00:00Z', 'Наблюдения и фотосъёмка', 0.55, 'Терешкова вела журнал, фотографировала горизонт и участвовала в медицинских экспериментах.'),
+                event('return', 'return', '1963-06-19T07:45:00Z', 'Подготовка к спуску', 0.95, 'После почти трёх суток и 48 витков корабль начал возвращение.'),
+                event('landing', 'landing', '1963-06-19T08:20:00Z', 'Посадка «Востока-6»', 1, 'Первая космическая миссия женщины завершилась успешным приземлением.')
             ],
             sources: [source('nasa-tereshkova', 'Valentina Tereshkova and Vostok 6', 'NASA', 'https://www.nasa.gov/history/60-years-ago-valentina-tereshkova-becomes-the-first-woman-in-space/')]
         }),
@@ -152,13 +163,16 @@
             ]),
             trajectory: earthOrbitTrajectory('1965-03-18T07:00:00Z', '1965-03-19T09:02:17Z', {
                 perigeeKm: 169, apogeeKm: 473, inclinationDeg: 64.8, periodMinutes: 90.9,
-                phaseDeg: -42, displayOrbits: 2
+                phaseDeg: -60, displayOrbits: 2, launchAngleDeg: -60, landingAngleDeg: 145,
+                launchSite: 'Космодром Байконур', returnMode: 'landing'
             }),
             targets: [target('earth', 'Земля', 'earth', 'primary')],
             events: [
-                event('launch', 'launch', '1965-03-18', 'Запуск «Восхода-2»', 0),
-                event('first-eva', 'eva', '1965-03-18', 'Первый выход человека в открытый космос', 0.12),
-                event('return', 'return', '1965-03-19', 'Возвращение экипажа', 0.94)
+                event('launch', 'launch', '1965-03-18T07:00:00Z', 'Запуск «Восхода-2»', 0, 'Павел Беляев и Алексей Леонов стартовали с Байконура на орбиту 169 × 473 километра.'),
+                event('first-eva', 'eva', '1965-03-18T08:34:51Z', 'Первый выход человека в открытый космос', 0.061, 'Леонов покинул шлюз «Волга» и провёл снаружи корабля 12 минут 9 секунд.'),
+                event('eva-end', 'eva', '1965-03-18T08:47:00Z', 'Возвращение в шлюз', 0.069, 'Раздувшийся скафандр мешал войти; космонавт снизил давление и вернулся головой вперёд.'),
+                event('return', 'return', '1965-03-19T08:35:00Z', 'Ручной сход с орбиты', 0.94, 'После отказа автоматики экипаж выполнил ориентацию и торможение вручную.'),
+                event('landing', 'landing', '1965-03-19T09:02:17Z', 'Посадка в тайге', 1, 'Корабль приземлился далеко от расчётной точки в заснеженном лесу Пермской области.')
             ],
             sources: [source('nasa-spacewalk-history', 'Spacewalking History', 'NASA', 'https://www.nasa.gov/history/space-station-20th-spacewalking-history/')]
         }),

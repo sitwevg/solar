@@ -150,6 +150,7 @@
         requireEnum(event.type, 'eventType', `${path}.type`, errors);
         requireString(event.title, `${path}.title`, errors);
         if (!isIsoDate(event.date)) pushError(errors, `${path}.date`, 'ожидалась дата ISO 8601');
+        if (event.description !== undefined) requireString(event.description, `${path}.description`, errors);
         if (event.simulationProgress !== undefined
             && (!Number.isFinite(event.simulationProgress) || event.simulationProgress < 0 || event.simulationProgress > 1)) {
             pushError(errors, `${path}.simulationProgress`, 'ожидалось число от 0 до 1');
@@ -218,6 +219,15 @@
                             pushError(errors, `${segmentPath}.orbit.${field}`, 'ожидалось положительное число');
                         }
                     });
+                    ['phaseDeg', 'launchAngleDeg', 'landingAngleDeg'].forEach((field) => {
+                        if (orbit[field] !== undefined && !Number.isFinite(orbit[field])) {
+                            pushError(errors, `${segmentPath}.orbit.${field}`, 'ожидалось конечное число');
+                        }
+                    });
+                    if (orbit.launchSite !== undefined) requireString(orbit.launchSite, `${segmentPath}.orbit.launchSite`, errors);
+                    if (orbit.returnMode !== undefined && !['landing', 'burn-up'].includes(orbit.returnMode)) {
+                        pushError(errors, `${segmentPath}.orbit.returnMode`, 'ожидалось landing или burn-up');
+                    }
                 }
             }
             if (!Array.isArray(segment.points) || segment.points.length < 2) {

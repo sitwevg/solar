@@ -9,14 +9,14 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.2.0"></script>
-  <script src="src/data/missions.js?v=0.2.0"></script>
+  <script src="src/core/mission-schema.js?v=0.3.0"></script>
+  <script src="src/data/missions.js?v=0.3.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
-  <script src="src/core/mission-catalog-view.js?v=0.1.1"></script>
-  <script src="src/core/mission-simulation.js?v=0.1.0"></script>
+  <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
+  <script src="src/core/mission-simulation.js?v=0.2.0"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.1">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.1.0">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.2.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -473,9 +473,17 @@
       <div id="mission-accuracy"></div>
     </header>
     <div id="mission-simulation-status">
+      <div id="mission-simulation-event-time"></div>
       <div id="mission-simulation-event"></div>
+      <div id="mission-simulation-event-description"></div>
       <div id="mission-simulation-note">Число показанных витков уменьшено, высота орбиты передана схематически.</div>
     </div>
+    <aside id="mission-story-panel" aria-label="Рассказ о миссии">
+      <div id="mission-story-heading">История миссии</div>
+      <div id="mission-story-viewport">
+        <div id="mission-story-scroll"></div>
+      </div>
+    </aside>
     <div id="mission-simulation-controls">
       <button class="mission-sim-button" id="mission-simulation-pause" type="button">⏸ Пауза</button>
       <button class="mission-sim-button" id="mission-vehicle-button" type="button">● Об аппарате</button>
@@ -2021,6 +2029,65 @@
       missionSimulationCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    function drawMissionBodyImage(ctx, image, x, y, radius) {
+      if (!image || !image.complete || image.naturalWidth <= 0) return false;
+      const size = Math.min(image.naturalWidth, image.naturalHeight);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(
+        image,
+        (image.naturalWidth - size) / 2,
+        (image.naturalHeight - size) / 2,
+        size,
+        size,
+        x - radius,
+        y - radius,
+        radius * 2,
+        radius * 2
+      );
+      ctx.restore();
+      return true;
+    }
+
+    function missionReturnProgress(mission) {
+      const event = mission.events.find(item => (
+        ['return', 'mission-end'].includes(item.type) && Number.isFinite(item.simulationProgress)
+      ));
+      return Math.max(.72, Math.min(.96, event?.simulationProgress ?? .88));
+    }
+
+    function populateMissionStory(mission) {
+      const story = document.getElementById('mission-story-scroll');
+      const title = document.createElement('h2');
+      title.textContent = mission.name;
+      const lead = document.createElement('p');
+      lead.className = 'mission-story-lead';
+      lead.textContent = mission.summary;
+      const paragraphs = mission.story.map(text => {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = text;
+        return paragraph;
+      });
+      const ending = document.createElement('div');
+      ending.className = 'mission-story-ending';
+      ending.textContent = `${missionSimulationApi.outcomeLabel(mission.status)}. ${mission.objective}`;
+      story.replaceChildren(title, lead, ...paragraphs, ending);
+      story.style.transform = 'translateY(0)';
+    }
+
+    function updateMissionStory(progress) {
+      const viewport = document.getElementById('mission-story-viewport');
+      const story = document.getElementById('mission-story-scroll');
+      const returnAt = missionReturnProgress(activeMission);
+      const narrativeProgress = Math.max(0, Math.min(1, progress / returnAt));
+      const startY = viewport.clientHeight * .58;
+      const endY = -story.scrollHeight - 8;
+      const eased = narrativeProgress * narrativeProgress * (3 - 2 * narrativeProgress);
+      story.style.transform = `translateY(${startY + (endY - startY) * eased}px)`;
+    }
+
     function drawMissionSimulation(progress, timestamp) {
       const ctx = missionSimulationCtx;
       const width = window.innerWidth;
@@ -2034,20 +2101,56 @@
         ctx.fillRect(x, y, index % 7 === 0 ? 1.6 : 1, index % 7 === 0 ? 1.6 : 1);
       }
 
-      const centerX = width / 2;
-      const centerY = height / 2 + (width < 540 ? 28 : 18);
-      const earthRadius = Math.max(46, Math.min(72, Math.min(width, height) * .09));
+      const mobile = width <= 540;
+      const storyWidth = mobile ? 0 : Math.min(360, width * .34) + 32;
+      const visualWidth = width - storyWidth;
+      const centerX = visualWidth / 2;
+      const centerY = mobile ? height * .43 : height * .58;
+      const earthRadius = Math.max(72, Math.min(126, visualWidth * .24, height * (mobile ? .14 : .2)));
+      const moonOrbitRadius = Math.min(visualWidth * .46, height * (mobile ? .31 : .42));
+      const moonRadius = Math.max(18, earthRadius * 3474 / 12742);
+      const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
+      let moonAngle = -2.35;
+      try {
+        const moon = Astronomy.GeoMoon(date);
+        const epsilon = 23.44 * Math.PI / 180;
+        const eclipticY = moon.y * Math.cos(epsilon) + moon.z * Math.sin(epsilon);
+        moonAngle = Math.atan2(eclipticY, moon.x);
+      } catch (error) {}
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, moonOrbitRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(185,205,245,.09)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      const moonX = centerX + Math.cos(moonAngle) * moonOrbitRadius;
+      const moonY = centerY + Math.sin(moonAngle) * moonOrbitRadius;
+      ctx.save();
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = 'rgba(220,228,245,.5)';
+      if (!drawMissionBodyImage(ctx, getImg('moons/moon.png'), moonX, moonY, moonRadius)) {
+        ctx.fillStyle = '#bfc4cf';
+        ctx.beginPath(); ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(225,232,248,.62)';
+      ctx.font = '600 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Луна', moonX, moonY - moonRadius - 8);
+
       const path = missionSimulationApi.orbitPath(activeMission);
-      const maxRadius = Math.max(...path.map(point => Math.hypot(point.x, point.y)));
-      const orbitRadius = Math.min(width * .39, height * .31);
-      const scale = orbitRadius / maxRadius;
-      const rotation = -.24;
+      const segment = missionSimulationApi.orbitalSegment(activeMission);
+      const maximumOrbitRadius = Math.min(visualWidth * .44, height * (mobile ? .23 : .34));
+      const altitudeRoom = Math.max(34, maximumOrbitRadius - earthRadius);
+      const maximumAltitude = Math.max(1, segment.orbit.apogeeKm);
       const screenPoint = point => {
-        const x = point.x * scale;
-        const y = point.y * scale;
+        const planarRadius = Math.max(1, Math.hypot(point.x, point.y));
+        const altitude = Math.max(0, point.radiusKm - missionSimulationApi.EARTH_RADIUS_KM);
+        const radius = earthRadius + Math.sqrt(Math.min(1, altitude / maximumAltitude)) * altitudeRoom;
         return {
-          x: centerX + x * Math.cos(rotation) - y * Math.sin(rotation),
-          y: centerY + x * Math.sin(rotation) + y * Math.cos(rotation)
+          x: centerX + point.x / planarRadius * radius,
+          y: centerY + point.y / planarRadius * radius
         };
       };
 
@@ -2060,32 +2163,55 @@
       ctx.lineWidth = 1.4;
       ctx.stroke();
 
-      const earthGlow = ctx.createRadialGradient(centerX, centerY, earthRadius * .2, centerX, centerY, earthRadius * 1.7);
-      earthGlow.addColorStop(0, '#5ca8ff');
-      earthGlow.addColorStop(.45, '#206bd0');
-      earthGlow.addColorStop(.62, '#0a2e74');
-      earthGlow.addColorStop(1, 'rgba(15,68,166,0)');
-      ctx.fillStyle = earthGlow;
-      ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius * 1.7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#216ed3';
-      ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(102,190,151,.68)';
-      ctx.beginPath();
-      ctx.ellipse(centerX - earthRadius * .18, centerY - earthRadius * .08, earthRadius * .43, earthRadius * .19, -.4, 0, Math.PI * 2);
-      ctx.ellipse(centerX + earthRadius * .28, centerY + earthRadius * .2, earthRadius * .28, earthRadius * .13, .7, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.save();
+      ctx.shadowBlur = earthRadius * .7;
+      ctx.shadowColor = '#397fdc';
+      ctx.fillStyle = '#174d9c';
+      ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius * .88, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      if (!drawMissionBodyImage(ctx, getImg('planets/earth.png'), centerX, centerY, earthRadius)) {
+        ctx.fillStyle = '#216ed3';
+        ctx.beginPath(); ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.fillStyle = 'rgba(232,242,255,.72)';
-      ctx.font = '600 12px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('Земля', centerX, centerY + earthRadius + 22);
+      ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Земля', centerX, centerY - earthRadius - 12);
+
+      const launchAngle = (segment.orbit.launchAngleDeg ?? segment.orbit.phaseDeg ?? 0) * Math.PI / 180;
+      const launchSite = {
+        x: centerX + Math.cos(launchAngle) * earthRadius,
+        y: centerY + Math.sin(launchAngle) * earthRadius
+      };
+      ctx.fillStyle = 'rgba(126,181,255,.95)';
+      ctx.beginPath(); ctx.arc(launchSite.x, launchSite.y, 3, 0, Math.PI * 2); ctx.fill();
+      if (progress < .18) {
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = 'rgba(178,205,255,.72)';
+        ctx.textAlign = launchSite.x >= centerX ? 'left' : 'right';
+        ctx.fillText(segment.orbit.launchSite || 'Место старта', launchSite.x + (launchSite.x >= centerX ? 8 : -8), launchSite.y - 5);
+      }
+
+      const tailStart = Math.max(0, progress - .018);
+      ctx.beginPath();
+      for (let index = 0; index <= 24; index += 1) {
+        const tailProgress = tailStart + (progress - tailStart) * index / 24;
+        const point = screenPoint(missionSimulationApi.positionAtProgress(activeMission, tailProgress));
+        if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
+      }
+      ctx.strokeStyle = 'rgba(255,205,103,.42)';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
 
       const position = missionSimulationApi.positionAtProgress(activeMission, progress);
       const vehicle = screenPoint(position);
       const pulse = 1 + Math.sin(timestamp / 180) * .15;
-      ctx.shadowBlur = 22 * pulse; ctx.shadowColor = '#ffd26f';
-      ctx.fillStyle = '#fff3b0';
-      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 5.5 * pulse, 0, Math.PI * 2); ctx.fill();
+      const burning = position.phase === 'return' && segment.orbit.returnMode === 'burn-up';
+      ctx.shadowBlur = 24 * pulse; ctx.shadowColor = burning ? '#ff6a32' : '#ffd26f';
+      ctx.fillStyle = burning ? '#fff0c2' : '#fff3b0';
+      const vehicleRadius = burning ? Math.max(1.5, 6 * (1 - progress)) : 5.5 * pulse;
+      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, vehicleRadius, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(255,222,126,.32)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = burning ? 'rgba(255,103,50,.5)' : 'rgba(255,222,126,.32)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 12 * pulse, 0, Math.PI * 2); ctx.stroke();
       missionVehicleHit = { x: vehicle.x, y: vehicle.y, radius: 24 };
     }
@@ -2100,7 +2226,12 @@
       const event = missionSimulationApi.currentEventAtProgress(activeMission, progress);
       simTime = date;
       document.getElementById('mission-simulation-date').textContent = missionSimulationApi.formatUtcDateTime(date);
+      document.getElementById('mission-simulation-event-time').textContent = event
+        ? missionSimulationApi.formatUtcDateTime(new Date(event.date))
+        : '';
       document.getElementById('mission-simulation-event').textContent = event?.title || 'Полёт продолжается';
+      document.getElementById('mission-simulation-event-description').textContent = event?.description || activeMission.summary;
+      updateMissionStory(progress);
       drawMissionSimulation(progress, timestamp);
 
       if (progress >= 1) {
@@ -2143,10 +2274,17 @@
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
       document.getElementById('mission-simulation-name').textContent = mission.name;
       document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
+      const segment = missionSimulationApi.orbitalSegment(mission);
+      document.getElementById('mission-simulation-note').textContent = segment.orbit.returnMode === 'burn-up'
+        ? `Показаны ${segment.orbit.displayOrbits} опорных витка; месяцы миссии сжаты до длины рассказа.`
+        : 'Траектория и высота орбиты увеличены для наглядности; события идут по исторической хронологии.';
       document.getElementById('mission-simulation-pause').textContent = '⏸ Пауза';
       document.getElementById('mission-complete').classList.remove('open');
       document.getElementById('mission-complete').setAttribute('aria-hidden', 'true');
       closeMissionVehicle();
+      populateMissionStory(mission);
+      getImg('planets/earth.png');
+      getImg('moons/moon.png');
       resizeMissionSimulation();
       missionSimulation.classList.add('open');
       missionSimulation.setAttribute('aria-hidden', 'false');

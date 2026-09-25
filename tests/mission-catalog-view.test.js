@@ -41,6 +41,7 @@ test('из каталога запускаются только четыре п�
 test('карточка получает русские даты, период, маршрут и статус', () => {
     const voyager = missions.find(mission => mission.id === 'voyager-2');
     assert.equal(view.formatDate(voyager.launchDate), '20 августа 1977');
+    assert.equal(view.formatDate('1961-04-12T06:07:00Z'), '12 апреля 1961 · 06:07 UTC');
     assert.equal(view.formatYearRange(voyager), '1977 — настоящее время');
     assert.match(view.targetRoute(voyager), /Земля → Юпитер → Сатурн → Уран → Нептун → Гелиопауза/);
     assert.equal(view.statusMeta(voyager.status).label, 'Продолжается');

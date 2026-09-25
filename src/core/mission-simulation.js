@@ -38,29 +38,104 @@
         return new Date(start + (end - start) * clamp(progress, 0, 1));
     }
 
-    function positionAtProgress(mission, progress) {
-        const segment = orbitalSegment(mission);
-        if (!segment) return null;
+    function smoothstep(value) {
+        const amount = clamp(value, 0, 1);
+        return amount * amount * (3 - 2 * amount);
+    }
+
+    function orbitPositionAtAngle(segment, angle) {
         const orbit = segment.orbit;
         const perigee = EARTH_RADIUS_KM + orbit.perigeeKm;
         const apogee = EARTH_RADIUS_KM + orbit.apogeeKm;
         const semiMajor = (perigee + apogee) / 2;
         const eccentricity = (apogee - perigee) / (apogee + perigee);
-        const angle = ((orbit.phaseDeg || 0) * Math.PI / 180)
-            + clamp(progress, 0, 1) * Math.PI * 2 * orbit.displayOrbits;
-        const radius = semiMajor * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(angle));
+        const startAngle = (orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
+        const anomaly = angle - startAngle;
+        const radius = semiMajor * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(anomaly));
         const inclination = orbit.inclinationDeg * Math.PI / 180;
-        return Object.freeze({
+        return {
             x: radius * Math.cos(angle),
             y: radius * Math.sin(angle) * Math.cos(inclination),
             z: radius * Math.sin(angle) * Math.sin(inclination),
             angle,
             radiusKm: radius
+        };
+    }
+
+    function interpolatePosition(start, end, amount, phase) {
+        const eased = smoothstep(amount);
+        const rawX = start.x + (end.x - start.x) * eased;
+        const rawY = start.y + (end.y - start.y) * eased;
+        const rawZ = start.z + (end.z - start.z) * eased;
+        const startRadius = Math.hypot(start.x, start.y, start.z);
+        const endRadius = Math.hypot(end.x, end.y, end.z);
+        const intendedRadius = startRadius + (endRadius - startRadius) * eased;
+        const rawRadius = Math.max(1, Math.hypot(rawX, rawY, rawZ));
+        const x = rawX / rawRadius * intendedRadius;
+        const y = rawY / rawRadius * intendedRadius;
+        const z = rawZ / rawRadius * intendedRadius;
+        return Object.freeze({
+            x, y, z,
+            angle: Math.atan2(y, x),
+            radiusKm: Math.hypot(x, y, z),
+            phase
         });
     }
 
+    function returnProgress(mission) {
+        const event = mission.events.find(item => (
+            ['return', 'mission-end'].includes(item.type) && Number.isFinite(item.simulationProgress)
+        ));
+        return clamp(event?.simulationProgress ?? 0.88, 0.72, 0.96);
+    }
+
+    function positionAtProgress(mission, progress) {
+        const segment = orbitalSegment(mission);
+        if (!segment) return null;
+        const orbit = segment.orbit;
+        const shownProgress = clamp(progress, 0, 1);
+        const launchEnd = clamp(orbit.launchProgress ?? 0.1, 0.05, 0.2);
+        const returnStart = Math.max(launchEnd + 0.35, returnProgress(mission));
+        const startAngle = (orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
+        const landingAngle = (orbit.landingAngleDeg ?? orbit.launchAngleDeg ?? orbit.phaseDeg ?? 0) * Math.PI / 180;
+        const orbitStart = orbitPositionAtAngle(segment, startAngle);
+        const launchSurface = {
+            x: EARTH_RADIUS_KM * Math.cos(startAngle),
+            y: EARTH_RADIUS_KM * Math.sin(startAngle),
+            z: 0
+        };
+
+        if (shownProgress <= launchEnd) {
+            return interpolatePosition(launchSurface, orbitStart, shownProgress / launchEnd, 'launch');
+        }
+
+        if (shownProgress < returnStart) {
+            const orbitProgress = (shownProgress - launchEnd) / (returnStart - launchEnd);
+            const angle = startAngle + orbitProgress * Math.PI * 2 * orbit.displayOrbits;
+            return Object.freeze({ ...orbitPositionAtAngle(segment, angle), phase: 'orbit' });
+        }
+
+        const orbitEnd = orbitPositionAtAngle(segment, startAngle + Math.PI * 2 * orbit.displayOrbits);
+        const landingSurface = {
+            x: EARTH_RADIUS_KM * Math.cos(landingAngle),
+            y: EARTH_RADIUS_KM * Math.sin(landingAngle),
+            z: 0
+        };
+        return interpolatePosition(
+            orbitEnd,
+            landingSurface,
+            (shownProgress - returnStart) / (1 - returnStart),
+            'return'
+        );
+    }
+
     function orbitPath(mission, sampleCount = 160) {
-        return Array.from({ length: sampleCount + 1 }, (_, index) => positionAtProgress(mission, index / sampleCount / orbitalSegment(mission).orbit.displayOrbits));
+        const segment = orbitalSegment(mission);
+        if (!segment) return [];
+        const startAngle = (segment.orbit.launchAngleDeg ?? segment.orbit.phaseDeg ?? 0) * Math.PI / 180;
+        return Array.from({ length: sampleCount + 1 }, (_, index) => (
+            orbitPositionAtAngle(segment, startAngle + index / sampleCount * Math.PI * 2)
+        ));
     }
 
     function currentEvent(mission, date) {
@@ -73,6 +148,9 @@
 
     function currentEventAtProgress(mission, progress) {
         if (!mission.events.length) return null;
+        if (mission.events.some(event => event.date.includes('T'))) {
+            return currentEvent(mission, missionDateAtProgress(mission, progress));
+        }
         const timed = mission.events.filter(event => Number.isFinite(event.simulationProgress));
         if (timed.length === mission.events.length) {
             return timed.filter(event => event.simulationProgress <= progress).at(-1) || timed[0];

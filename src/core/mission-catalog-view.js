@@ -75,8 +75,10 @@
 
     function formatDate(isoDate) {
         if (!isoDate) return 'по настоящее время';
-        const [year, month, day] = isoDate.split('-').map(Number);
-        return `${day} ${MONTHS[month - 1]} ${year}`;
+        const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number);
+        const calendarDate = `${day} ${MONTHS[month - 1]} ${year}`;
+        if (!isoDate.includes('T')) return calendarDate;
+        return `${calendarDate} · ${isoDate.slice(11, 16)} UTC`;
     }
 
     function formatYearRange(mission) {
