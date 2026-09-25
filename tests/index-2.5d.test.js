@@ -85,3 +85,13 @@ test('объём пояса Койпера включает наклонённу
     assert.match(html, /hotPopulation = Math\.random\(\) < 0\.42/);
     assert.match(html, /7 \+ Math\.random\(\) \* 25/);
 });
+
+test('каталог миссий доступен с карты и блокирует неподготовленные симуляции', () => {
+    assert.match(html, /id="launch-btn"[^>]*>🚀 Запустить ракету/);
+    assert.match(html, /id="mission-catalog"[^>]+aria-hidden="true"/);
+    assert.match(html, /id="mission-grid"/);
+    assert.match(html, /id="mission-detail"[^>]+aria-labelledby="mission-detail-name"/);
+    assert.match(html, /missionCatalogApi\.filterByCategory\(SolarMissionCatalog, missionCategory\)/);
+    assert.match(html, /simulate\.disabled = !ready/);
+    assert.match(html, /solar:mission-simulation-request/);
+});

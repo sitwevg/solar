@@ -12,7 +12,9 @@
   <script src="src/core/mission-schema.js?v=0.1.0"></script>
   <script src="src/data/missions.js?v=0.1.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
+  <script src="src/core/mission-catalog-view.js?v=0.1.1"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
+  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -382,7 +384,10 @@
         <span id="tilt-value" aria-live="polite">42°</span>
         <button class="tilt-btn" id="tilt-up" type="button" aria-label="Увеличить наклон">+</button>
       </div>
-      <button id="now-btn">⦿ Сейчас</button>
+      <div id="time-actions">
+        <button id="now-btn">⦿ Сейчас</button>
+        <button id="launch-btn" type="button">🚀 Запустить ракету</button>
+      </div>
     </div>
   </div>
 
@@ -396,6 +401,60 @@
       </div>
     </div>
   </div>
+
+  <section id="mission-catalog" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Каталог космических миссий">
+    <header id="mission-catalog-header">
+      <button class="mission-icon-btn" id="mission-catalog-close" type="button" aria-label="Вернуться к карте">← Карта</button>
+      <div id="mission-catalog-title">
+        <strong>История космонавтики</strong>
+        <span>20 знаковых миссий, запуски 1957–2003</span>
+      </div>
+      <div aria-hidden="true" style="width:42px"></div>
+    </header>
+    <div id="mission-catalog-scroll">
+      <main id="mission-catalog-content">
+        <p id="mission-catalog-intro">От первого искусственного спутника до первой доставки вещества астероида на Землю. Выберите миссию, чтобы увидеть её цель, хронологию и источники.</p>
+        <nav id="mission-filters" aria-label="Фильтр миссий"></nav>
+        <div id="mission-legend" aria-label="Обозначения результатов"></div>
+        <div id="mission-list-heading">
+          <strong id="mission-list-title">Все миссии</strong>
+          <span id="mission-list-count"></span>
+        </div>
+        <div id="mission-grid"></div>
+      </main>
+    </div>
+
+    <article id="mission-detail" aria-hidden="true" aria-labelledby="mission-detail-name">
+      <header id="mission-detail-header">
+        <button class="mission-icon-btn" id="mission-detail-back" type="button">← К списку</button>
+        <div id="mission-detail-header-title">Карточка миссии</div>
+        <div aria-hidden="true" style="width:42px"></div>
+      </header>
+      <div id="mission-detail-scroll">
+        <div id="mission-detail-content">
+          <div id="mission-detail-kicker"></div>
+          <h2 id="mission-detail-name"></h2>
+          <p id="mission-detail-summary"></p>
+          <div class="mission-status" id="mission-detail-status"></div>
+          <div id="mission-meta-grid"></div>
+          <section class="mission-detail-section">
+            <h3>Задача миссии</h3>
+            <p id="mission-detail-objective"></p>
+          </section>
+          <section class="mission-detail-section">
+            <h3>Ключевые события</h3>
+            <ol id="mission-event-list"></ol>
+          </section>
+          <section class="mission-detail-section">
+            <h3>Источники</h3>
+            <div id="mission-source-list"></div>
+          </section>
+          <button id="mission-simulate" type="button" disabled>Траектория готовится</button>
+          <p id="mission-simulate-note">Симуляция станет доступна после подготовки и проверки траектории.</p>
+        </div>
+      </div>
+    </article>
+  </section>
 
   <div id="panel">
     <div id="panel-header">
@@ -1627,6 +1686,203 @@
     });
     dateModal.addEventListener('click', e => { if (e.target === dateModal) closeDateModal(); });
 
+    // ── Mission catalog ─────────────────────────────────────────────
+    const missionCatalog = document.getElementById('mission-catalog');
+    const missionDetail = document.getElementById('mission-detail');
+    const missionGrid = document.getElementById('mission-grid');
+    const missionFilters = document.getElementById('mission-filters');
+    const missionLegend = document.getElementById('mission-legend');
+    const missionListTitle = document.getElementById('mission-list-title');
+    const missionListCount = document.getElementById('mission-list-count');
+    const missionCatalogApi = SolarMissionCatalogView;
+    let missionCategory = 'all';
+    let selectedMission = null;
+    let catalogWasPaused = false;
+
+    function missionElement(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text != null) element.textContent = text;
+      return element;
+    }
+
+    function missionStatusElement(mission, id = '') {
+      const meta = missionCatalogApi.statusMeta(mission.status);
+      const element = missionElement('span', `mission-status status-${meta.tone}`, meta.label);
+      if (id) element.id = id;
+      return element;
+    }
+
+    function renderMissionFilters() {
+      missionFilters.replaceChildren();
+      missionCatalogApi.CATEGORY_ORDER.forEach(category => {
+        const meta = missionCatalogApi.categoryMeta(category);
+        const button = missionElement('button', 'mission-filter');
+        button.type = 'button';
+        button.dataset.category = category;
+        button.setAttribute('aria-pressed', String(category === missionCategory));
+        button.append(meta.shortLabel, missionElement(
+          'span', 'mission-filter-count', String(missionCatalogApi.categoryCount(SolarMissionCatalog, category))
+        ));
+        button.addEventListener('click', () => {
+          missionCategory = category;
+          renderMissionFilters();
+          renderMissionList();
+        });
+        missionFilters.append(button);
+      });
+    }
+
+    function renderMissionLegend() {
+      missionLegend.replaceChildren();
+      ['success', 'partial-success', 'active', 'catastrophe'].forEach(status => {
+        const meta = missionCatalogApi.statusMeta(status);
+        const item = missionElement('span', `mission-legend-item status-${meta.tone}`);
+        item.append(missionElement('span', 'mission-legend-dot'), meta.label);
+        missionLegend.append(item);
+      });
+    }
+
+    function openMissionDetail(mission) {
+      selectedMission = mission;
+      const category = missionCatalogApi.categoryMeta(mission.category);
+      const status = missionCatalogApi.statusMeta(mission.status);
+      document.getElementById('mission-detail-kicker').textContent = `${category.label} · ${missionCatalogApi.formatYearRange(mission)}`;
+      document.getElementById('mission-detail-name').textContent = mission.name;
+      document.getElementById('mission-detail-summary').textContent = mission.summary;
+      document.getElementById('mission-detail-objective').textContent = mission.objective;
+      document.getElementById('mission-detail-header-title').textContent = mission.name;
+
+      const statusSlot = document.getElementById('mission-detail-status');
+      statusSlot.className = `mission-status status-${status.tone}`;
+      statusSlot.textContent = status.label;
+
+      const metaGrid = document.getElementById('mission-meta-grid');
+      metaGrid.replaceChildren();
+      [
+        ['Запуск', missionCatalogApi.formatDate(mission.launchDate)],
+        ['Завершение', missionCatalogApi.formatDate(mission.endDate)],
+        ['Страна и организации', `${mission.countries.join(', ')} · ${mission.agencies.join(', ')}`],
+        ['Маршрут', missionCatalogApi.targetRoute(mission)]
+      ].forEach(([label, value]) => {
+        const box = missionElement('div', 'mission-meta-box');
+        box.append(missionElement('div', 'mission-meta-label', label), missionElement('div', 'mission-meta-value', value));
+        metaGrid.append(box);
+      });
+
+      const events = document.getElementById('mission-event-list');
+      events.replaceChildren();
+      mission.events.forEach(event => {
+        const item = missionElement('li', 'mission-event');
+        item.append(
+          missionElement('div', 'mission-event-date', missionCatalogApi.formatDate(event.date)),
+          missionElement('div', 'mission-event-title', event.title)
+        );
+        events.append(item);
+      });
+
+      const sources = document.getElementById('mission-source-list');
+      sources.replaceChildren();
+      mission.sources.forEach(source => {
+        const link = missionElement('a', 'mission-source', `${source.publisher}: ${source.label} ↗`);
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        sources.append(link);
+      });
+
+      const ready = missionCatalogApi.isSimulationReady(mission);
+      const simulate = document.getElementById('mission-simulate');
+      simulate.disabled = !ready;
+      simulate.textContent = ready ? '▶ Запустить полёт' : 'Траектория готовится';
+      document.getElementById('mission-simulate-note').textContent = ready
+        ? 'Карта переключится на дату запуска и покажет учебную реконструкцию.'
+        : 'Симуляция станет доступна после подготовки и проверки траектории.';
+
+      document.getElementById('mission-detail-scroll').scrollTop = 0;
+      missionDetail.classList.add('open');
+      missionDetail.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => document.getElementById('mission-detail-back').focus());
+    }
+
+    function closeMissionDetail() {
+      missionDetail.classList.remove('open');
+      missionDetail.setAttribute('aria-hidden', 'true');
+      const returnCard = selectedMission
+        ? missionGrid.querySelector(`[data-mission-id="${selectedMission.id}"]`)
+        : null;
+      selectedMission = null;
+      if (returnCard) requestAnimationFrame(() => returnCard.focus());
+    }
+
+    function renderMissionList() {
+      const missions = missionCatalogApi.filterByCategory(SolarMissionCatalog, missionCategory);
+      const category = missionCatalogApi.categoryMeta(missionCategory);
+      missionListTitle.textContent = category.label;
+      missionListCount.textContent = missionCatalogApi.missionCountLabel(missions.length);
+      missionGrid.replaceChildren();
+
+      missions.forEach(mission => {
+        const status = missionCatalogApi.statusMeta(mission.status);
+        const card = missionElement('button', `mission-card status-${status.tone}`);
+        card.type = 'button';
+        card.dataset.missionId = mission.id;
+        card.setAttribute('aria-label', `${mission.name}, ${missionCatalogApi.formatYearRange(mission)}, ${status.label}`);
+        const top = missionElement('div', 'mission-card-top');
+        top.append(missionElement('span', 'mission-year', missionCatalogApi.formatYearRange(mission)), missionStatusElement(mission));
+        card.append(
+          top,
+          missionElement('div', 'mission-card-name', mission.name),
+          missionElement('div', 'mission-card-summary', mission.summary),
+          missionElement('div', 'mission-card-route', missionCatalogApi.targetRoute(mission))
+        );
+        card.addEventListener('click', () => openMissionDetail(mission));
+        missionGrid.append(card);
+      });
+      document.getElementById('mission-catalog-scroll').scrollTop = 0;
+    }
+
+    function openMissionCatalog() {
+      if (missionCatalog.classList.contains('open')) return;
+      catalogWasPaused = paused;
+      paused = true;
+      updatePauseBtn();
+      panel.classList.remove('open', 'above-zoom');
+      closeDateModal();
+      closeMissionDetail();
+      document.getElementById('hud').inert = true;
+      panel.inert = true;
+      zoomView.inert = true;
+      renderMissionFilters();
+      renderMissionLegend();
+      renderMissionList();
+      missionCatalog.classList.add('open');
+      missionCatalog.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => document.getElementById('mission-catalog-close').focus());
+    }
+
+    function closeMissionCatalog() {
+      closeMissionDetail();
+      missionCatalog.classList.remove('open');
+      missionCatalog.setAttribute('aria-hidden', 'true');
+      document.getElementById('hud').inert = false;
+      panel.inert = false;
+      zoomView.inert = false;
+      paused = catalogWasPaused;
+      updatePauseBtn();
+      requestAnimationFrame(() => document.getElementById('launch-btn').focus());
+    }
+
+    document.getElementById('launch-btn').addEventListener('click', openMissionCatalog);
+    document.getElementById('mission-catalog-close').addEventListener('click', closeMissionCatalog);
+    document.getElementById('mission-detail-back').addEventListener('click', closeMissionDetail);
+    document.getElementById('mission-simulate').addEventListener('click', () => {
+      if (!selectedMission || !missionCatalogApi.isSimulationReady(selectedMission)) return;
+      window.dispatchEvent(new CustomEvent('solar:mission-simulation-request', {
+        detail: { missionId: selectedMission.id }
+      }));
+    });
+
     // ── Touch / click (main canvas) ───────────────────────────────────
     function findFeatureLabel(x, y) {
       return featureLabelHits.find(hit => {
@@ -1657,7 +1913,9 @@
     // ── Keyboard ─────────────────────────────────────────────────────
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (zoomView.classList.contains('open')) closeZoom();
+      if (missionDetail.classList.contains('open')) closeMissionDetail();
+      else if (missionCatalog.classList.contains('open')) closeMissionCatalog();
+      else if (zoomView.classList.contains('open')) closeZoom();
       else { panel.classList.remove('open'); panel.classList.remove('above-zoom'); }
     });
 
