@@ -22,7 +22,9 @@
     const MAX_TILT = 85;
     const DEFAULT_TILT = 42;
     const TILT_DRAG_PIXELS_PER_DEGREE = 3;
-    const SCALE_INNER_EDGE_AU = 10;
+    const SCALE_MARS_EDGE_AU = 1.7;
+    const SCALE_JUPITER_EDGE_AU = 6;
+    const SCALE_NEPTUNE_EDGE_AU = 30;
     const SCALE_KUIPER_EDGE_AU = 55;
     const SCALE_HELIOPAUSE_AU = 120;
 
@@ -45,12 +47,51 @@
         );
     }
 
-    function semanticZoomBoost(distanceAu, viewScale) {
-        const distance = Math.max(0, Number(distanceAu) || 0);
+    function scaleDetail(viewScale) {
         const scale = Math.max(0, Number(viewScale) || 0);
-        const detail = Math.max(0, Math.min(1, (scale - 1) / 3));
-        const innerWeight = Math.max(0, Math.min(1, 1 - distance / SCALE_INNER_EDGE_AU));
-        return 1 + detail * innerWeight * 1.1;
+        return Math.max(0, Math.min(1, (scale - 1) / 3));
+    }
+
+    function lerp(start, end, amount) {
+        return start + (end - start) * amount;
+    }
+
+    function radiusFraction(distanceAu, viewScale) {
+        const distance = Math.max(0, Number(distanceAu) || 0);
+        const detail = scaleDetail(viewScale);
+        const marsRadius = lerp(0.22, 0.36, detail);
+        const jupiterRadius = lerp(0.43, 0.54, detail);
+        const neptuneRadius = lerp(0.67, 0.72, detail);
+        const kuiperRadius = lerp(0.82, 0.85, detail);
+
+        if (distance <= SCALE_MARS_EDGE_AU) {
+            return marsRadius * distance / SCALE_MARS_EDGE_AU;
+        }
+        if (distance <= SCALE_JUPITER_EDGE_AU) {
+            const amount = (distance - SCALE_MARS_EDGE_AU)
+                / (SCALE_JUPITER_EDGE_AU - SCALE_MARS_EDGE_AU);
+            return lerp(marsRadius, jupiterRadius, amount);
+        }
+        if (distance <= SCALE_NEPTUNE_EDGE_AU) {
+            const amount = (distance - SCALE_JUPITER_EDGE_AU)
+                / (SCALE_NEPTUNE_EDGE_AU - SCALE_JUPITER_EDGE_AU);
+            return lerp(jupiterRadius, neptuneRadius, amount);
+        }
+        if (distance <= SCALE_KUIPER_EDGE_AU) {
+            const amount = (distance - SCALE_NEPTUNE_EDGE_AU)
+                / (SCALE_KUIPER_EDGE_AU - SCALE_NEPTUNE_EDGE_AU);
+            return lerp(neptuneRadius, kuiperRadius, amount);
+        }
+
+        const outerSlope = (1 - kuiperRadius)
+            / (SCALE_HELIOPAUSE_AU - SCALE_KUIPER_EDGE_AU);
+        return kuiperRadius + (distance - SCALE_KUIPER_EDGE_AU) * outerSlope;
+    }
+
+    function semanticZoomBoost(distanceAu, viewScale) {
+        const overview = radiusFraction(distanceAu, 1);
+        if (overview === 0) return 1;
+        return radiusFraction(distanceAu, viewScale) / overview;
     }
 
     function wheelZoomFactor(deltaY, deltaMode = 0, viewportHeight = 800) {
@@ -66,23 +107,7 @@
     function solarDistanceToPixels(distanceAu, maximumRadius, viewScale = 1) {
         const distance = Math.max(0, Number(distanceAu) || 0);
         const radius = Math.max(1, Number(maximumRadius) || 1);
-        const innerRadius = radius * 0.44;
-        const kuiperRadius = radius * 0.78;
-        let mappedRadius;
-
-        if (distance <= SCALE_INNER_EDGE_AU) {
-            mappedRadius = innerRadius * Math.pow(distance / SCALE_INNER_EDGE_AU, 0.4);
-        } else if (distance <= SCALE_KUIPER_EDGE_AU) {
-            const amount = (distance - SCALE_INNER_EDGE_AU)
-                / (SCALE_KUIPER_EDGE_AU - SCALE_INNER_EDGE_AU);
-            mappedRadius = innerRadius + (kuiperRadius - innerRadius) * amount;
-        } else {
-            const outerSlope = (radius - kuiperRadius)
-                / (SCALE_HELIOPAUSE_AU - SCALE_KUIPER_EDGE_AU);
-            mappedRadius = kuiperRadius + (distance - SCALE_KUIPER_EDGE_AU) * outerSlope;
-        }
-
-        return mappedRadius * semanticZoomBoost(distance, viewScale);
+        return radius * radiusFraction(distance, viewScale);
     }
 
     function projectPoint(point, options) {
@@ -166,7 +191,9 @@
         MAX_TILT,
         DEFAULT_TILT,
         TILT_DRAG_PIXELS_PER_DEGREE,
-        SCALE_INNER_EDGE_AU,
+        SCALE_MARS_EDGE_AU,
+        SCALE_JUPITER_EDGE_AU,
+        SCALE_NEPTUNE_EDGE_AU,
         SCALE_KUIPER_EDGE_AU,
         SCALE_HELIOPAUSE_AU,
         clampTilt,

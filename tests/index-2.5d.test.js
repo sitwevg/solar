@@ -80,6 +80,15 @@ test('карточки разделяют пояс Койпера и более 
     assert.doesNotMatch(html, /Пояс Койпера[^]*?продолжается почти до 1 000 а\.е\./);
 });
 
+test('главный пояс астероидов нарисован между Марсом и Юпитером и открывает справку', () => {
+    assert.match(html, /const ASTEROID_BELT_INNER_AU = 2\.2/);
+    assert.match(html, /const ASTEROID_BELT_OUTER_AU = 3\.2/);
+    assert.match(html, /Array\.from\(\{ length: 520 \}/);
+    assert.match(html, /asteroidBelt: \{/);
+    assert.match(html, /'Главный пояс астероидов →'/);
+    assert.match(html, /FEATURE_INFO\.asteroidBelt/);
+});
+
 test('объём пояса Койпера включает наклонённую орбиту Плутона', () => {
     assert.match(html, /Array\.from\(\{ length: 700 \}/);
     assert.match(html, /hotPopulation = Math\.random\(\) < 0\.42/);

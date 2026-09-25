@@ -75,6 +75,33 @@ test('гибридная шкала разделяет внешние плане
     assert.equal(heliopause, radius);
 });
 
+test('от Солнца до Марса действует линейная шкала с сопоставимыми первыми промежутками', () => {
+    const radius = 300;
+    const mercury = projection.solarDistanceToPixels(0.387, radius);
+    const venus = projection.solarDistanceToPixels(0.723, radius);
+    const earth = projection.solarDistanceToPixels(1, radius);
+    const mars = projection.solarDistanceToPixels(1.524, radius);
+    const sunToMercury = mercury;
+    const mercuryToVenus = venus - mercury;
+
+    assert.ok(mercury < venus && venus < earth && earth < mars);
+    assert.ok(mercuryToVenus / sunToMercury > 0.75);
+    assert.ok(mercuryToVenus / sunToMercury < 1.05);
+});
+
+test('главный пояс остаётся между Марсом и Юпитером при любом уровне зума', () => {
+    for (const viewScale of [1, 2.5, 4]) {
+        const distances = [1.524, 2.2, 3.2, 5.203, 9.537, 19.19, 30.07];
+        const radii = distances.map(distance => (
+            projection.solarDistanceToPixels(distance, 300, viewScale)
+        ));
+
+        radii.slice(1).forEach((radius, index) => {
+            assert.ok(radius > radii[index]);
+        });
+    }
+});
+
 test('орбита Плутона остаётся внутри визуального пояса Койпера', () => {
     const radius = 300;
     const beltInner = projection.solarDistanceToPixels(30, radius);

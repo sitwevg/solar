@@ -708,6 +708,20 @@
       ph: Math.random() * Math.PI * 2,
     }));
 
+    // ── Main Asteroid Belt ───────────────────────────────────────────
+    const ASTEROID_BELT_INNER_AU = 2.2;
+    const ASTEROID_BELT_OUTER_AU = 3.2;
+    const ASTEROID_BELT = Array.from({ length: 520 }, () => ({
+      angle: Math.random() * Math.PI * 2,
+      au: ASTEROID_BELT_INNER_AU + Math.random() * (ASTEROID_BELT_OUTER_AU - ASTEROID_BELT_INNER_AU),
+      inclination: Math.random() * 12 * Math.PI / 180,
+      node: Math.random() * Math.PI * 2,
+      size: Math.random() * 0.45 + 0.18,
+      alpha: Math.random() * 0.28 + 0.12,
+      sp: Math.random() * 0.8 + 0.25,
+      ph: Math.random() * Math.PI * 2,
+    }));
+
     // ── Kuiper Belt ───────────────────────────────────────────────────
     const KUIPER = Array.from({ length: 700 }, () => {
       const hotPopulation = Math.random() < 0.42;
@@ -1166,6 +1180,21 @@
     }
 
     const FEATURE_INFO = {
+      asteroidBelt: {
+        name: 'Главный пояс астероидов (≈2,2–3,2 а.е.)',
+        type: 'Область малых тел между орбитами Марса и Юпитера',
+        color: '#e1c39a',
+        isFeature: true,
+        stats: [
+          { label: 'Расположение', value: '≈2,2–3,2 а.е.', sub: 'между Марсом и Юпитером' },
+          { label: 'Крупнейшее тело', value: 'Церера', sub: 'карликовая планета диаметром около 940 км' },
+          { label: 'Промежутки Кирквуда', value: 'Орбитальные резонансы', sub: 'притяжение Юпитера расчищает отдельные орбиты' },
+          { label: 'Плотность', value: 'Почти пустота', sub: 'астероиды разделяют огромные расстояния' },
+          { label: 'Происхождение', value: 'Остатки формирования', sub: 'планета здесь так и не сформировалась' },
+          { label: 'Первое пересечение', value: 'Pioneer 10', sub: 'безопасно прошёл пояс в 1972–1973 годах' },
+        ],
+        desc: 'Главный пояс астероидов — широкая область между Марсом и Юпитером, а не плотная полоса камней из фантастических фильмов. Между крупными телами лежат миллионы километров, поэтому аппараты многократно пересекали пояс без столкновений. Его крупнейший объект — Церера: почти круглая карликовая планета диаметром около 940 км. Сильная гравитация Юпитера помешала веществу этой области собраться в полноценную планету и продолжает формировать структуру пояса. В местах, где период обращения астероида образует простое соотношение с периодом Юпитера, возникают разреженные промежутки Кирквуда.'
+      },
       kuiper: {
         name: 'Пояс Койпера (30–55 а.е.)',
         type: 'Область ледяных тел за орбитой Нептуна',
@@ -1223,11 +1252,13 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       const width = ctx.measureText(text).width;
-      featureLabelHits.push({ x, y, width: width * uiScale, height: 12 * uiScale, feature });
+      featureLabelHits.push({ x, y, width: (width + 8) * uiScale, height: 16 * uiScale, feature });
       ctx.translate(x, y);
       ctx.scale(uiScale, uiScale);
 
       const hovered = hoveredFeature === feature;
+      ctx.fillStyle = hovered ? 'rgba(8, 24, 48, 0.92)' : 'rgba(2, 8, 22, 0.72)';
+      ctx.fillRect(-width / 2 - 4, -11, width + 8, 15);
       ctx.fillStyle = hovered ? '#ffffff' : color;
       ctx.fillText(text, 0, 0);
 
@@ -1242,27 +1273,56 @@
       ctx.restore();
     }
 
+    function projectedBeltPoint(object, cacheKey) {
+      if (!object.projected || object.projected.key !== cacheKey) {
+        let point;
+        if (projectionMode === SolarSpaceProjection.MODE_TOP) {
+          point = projectSpacePoint(object.au * Math.cos(object.angle), object.au * Math.sin(object.angle), 0);
+        } else {
+          const cosNode = Math.cos(object.node), sinNode = Math.sin(object.node);
+          const cosAngle = Math.cos(object.angle), sinAngle = Math.sin(object.angle);
+          const cosInclination = Math.cos(object.inclination), sinInclination = Math.sin(object.inclination);
+          point = projectSpacePoint(
+            object.au * (cosNode * cosAngle - sinNode * sinAngle * cosInclination),
+            object.au * (sinNode * cosAngle + cosNode * sinAngle * cosInclination),
+            object.au * sinAngle * sinInclination
+          );
+        }
+        object.projected = { key: cacheKey, point };
+      }
+      return object.projected.point;
+    }
+
+    function drawAsteroidBelt(ts) {
+      ctx.save();
+      const cacheKey = projectionCacheKey();
+      ASTEROID_BELT.forEach(object => {
+        const point = projectedBeltPoint(object, cacheKey);
+        const pulse = 0.65 + 0.35 * Math.sin(object.ph + ts * object.sp * 0.0003);
+        ctx.globalAlpha = Math.min(0.8, object.alpha * pulse * 1.8);
+        ctx.fillStyle = object.au < 2.7 ? '#d7bc96' : '#bd9d78';
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, object.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawAsteroidBeltLabel() {
+      const rInner = auToPx(ASTEROID_BELT_INNER_AU);
+      const rOuter = auToPx(ASTEROID_BELT_OUTER_AU);
+      const labelPoint = projectAtPixelRadius(0, 1, 0, (rInner + rOuter) / 2);
+      drawFeatureLabel(
+        'Главный пояс астероидов →', labelPoint.x, labelPoint.y - 9 / viewScale,
+        '9px sans-serif', 'rgba(225, 195, 154, 0.82)', FEATURE_INFO.asteroidBelt
+      );
+    }
+
     function drawKuiper(ts) {
       ctx.save();
       const cacheKey = projectionCacheKey();
       KUIPER.forEach(o => {
-        if (!o.projected || o.projected.key !== cacheKey) {
-          let point;
-          if (projectionMode === SolarSpaceProjection.MODE_TOP) {
-            point = projectSpacePoint(o.au * Math.cos(o.angle), o.au * Math.sin(o.angle), 0);
-          } else {
-            const cosNode = Math.cos(o.node), sinNode = Math.sin(o.node);
-            const cosAngle = Math.cos(o.angle), sinAngle = Math.sin(o.angle);
-            const cosInclination = Math.cos(o.inclination), sinInclination = Math.sin(o.inclination);
-            point = projectSpacePoint(
-              o.au * (cosNode * cosAngle - sinNode * sinAngle * cosInclination),
-              o.au * (sinNode * cosAngle + cosNode * sinAngle * cosInclination),
-              o.au * sinAngle * sinInclination
-            );
-          }
-          o.projected = { key: cacheKey, point };
-        }
-        const point = o.projected.point;
+        const point = projectedBeltPoint(o, cacheKey);
         const a = o.alpha * (0.5 + 0.5 * Math.sin(o.ph + ts * o.sp * 0.0003));
         ctx.globalAlpha = Math.min(1, a * 3.5);
         ctx.fillStyle = o.hotPopulation
@@ -1272,16 +1332,18 @@
         ctx.arc(point.x, point.y, o.size, 0, Math.PI * 2);
         ctx.fill();
       });
-      ctx.globalAlpha = 1;
-      // Надпись пояса Койпера
+      ctx.restore();
+    }
+
+    function drawKuiperLabel() {
       const rInner = auToPx(30), rOuter = auToPx(55);
       const rLabel = (rInner + rOuter) / 2;
       const labelPoint = projectAtPixelRadius(0, 1, 0, rLabel);
+      const topSafeY = screenToWorld(0, 58).y;
       drawFeatureLabel(
-        'Пояс Койпера', labelPoint.x, labelPoint.y - 4,
+        'Пояс Койпера', labelPoint.x, Math.max(labelPoint.y - 18 / viewScale, topSafeY),
         '9px sans-serif', 'rgba(180, 210, 255, 0.58)', FEATURE_INFO.kuiper
       );
-      ctx.restore();
     }
 
     function drawHeliopause() {
@@ -1307,6 +1369,10 @@
       ctx.setLineDash([6, 14]);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    function drawHeliopauseLabels() {
       const labelPoint = heliopauseProjectionCache.points[36];
       drawFeatureLabel(
         'Гелиопауза ~120 а.е.', labelPoint.x, labelPoint.y - 6,
@@ -1317,7 +1383,6 @@
         'За гелиопаузой: дальние области →', labelPoint.x, Math.max(labelPoint.y - 32 / viewScale, topSafeY),
         '10px sans-serif', 'rgba(199, 215, 255, 0.78)', FEATURE_INFO.distantRegions
       );
-      ctx.restore();
     }
 
     function drawMoon(px, py, angle, dr, color, r = 1.5, alpha = 0.72, uiScale = 1) {
@@ -1396,7 +1461,11 @@
       featureLabelHits = [];
       drawHeliopause();
       drawKuiper(ts);
+      drawAsteroidBelt(ts);
       PLANETS.forEach(drawOrbit);
+      drawHeliopauseLabels();
+      drawKuiperLabel();
+      drawAsteroidBeltLabel();
 
       const planetUiScale = mapUiScale(1.35);
       const labelUiScale = mapUiScale(1.2);
