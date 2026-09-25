@@ -14,7 +14,7 @@
 #mission-simulation-date { margin-top:2px; color:rgba(190,207,255,.58); font-size:11px; font-variant-numeric:tabular-nums; }
 #mission-accuracy { justify-self:end; padding:5px 9px; border:1px solid rgba(127,164,255,.26); border-radius:13px; color:#9fbcff; background:rgba(74,108,205,.12); font-size:9px; }
 #mission-simulation-status {
-  position:absolute; z-index:2; top:84px; left:16px; width:min(560px,calc(62% - 24px));
+  position:absolute; z-index:2; top:66px; left:16px; width:min(560px,calc(62% - 24px));
   padding:10px 13px; border:1px solid rgba(125,160,255,.16); border-radius:12px;
   background:rgba(3,10,31,.78); text-align:left; backdrop-filter:blur(14px);
 }
@@ -23,7 +23,7 @@
 #mission-simulation-event-description { margin-top:4px; color:rgba(226,235,255,.68); font-size:10px; line-height:1.45; }
 #mission-simulation-note { margin-top:3px; color:rgba(220,230,255,.44); font-size:9px; }
 #mission-story-panel {
-  position:absolute; z-index:2; top:88px; right:16px; bottom:76px; width:min(360px,34vw);
+  position:absolute; z-index:2; top:88px; right:16px; bottom:102px; width:min(360px,34vw);
   display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(129,163,255,.18);
   border-radius:17px; background:linear-gradient(180deg,rgba(5,13,36,.9),rgba(2,8,24,.78));
   box-shadow:0 18px 70px #0007; backdrop-filter:blur(16px);
@@ -49,12 +49,19 @@
 }
 #mission-simulation-controls {
   position:absolute; z-index:2; right:16px; bottom:max(16px,env(safe-area-inset-bottom)); left:16px;
-  display:flex; align-items:center; justify-content:center; gap:9px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
 }
+#mission-timeline { width:min(680px,100%); display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:9px; color:rgba(190,207,255,.52); font-size:9px; }
+#mission-progress { width:100%; height:18px; margin:0; background:transparent; accent-color:#88aaff; cursor:pointer; -webkit-appearance:none; appearance:none; }
+#mission-progress::-webkit-slider-runnable-track { height:3px; border-radius:3px; background:rgba(135,165,255,.28); }
+#mission-progress::-webkit-slider-thumb { width:15px; height:15px; margin-top:-6px; border:2px solid #dfe8ff; border-radius:50%; background:#779cff; box-shadow:0 0 12px rgba(105,145,255,.75); -webkit-appearance:none; }
+#mission-progress::-moz-range-track { height:3px; border-radius:3px; background:rgba(135,165,255,.28); }
+#mission-progress::-moz-range-thumb { width:13px; height:13px; border:2px solid #dfe8ff; border-radius:50%; background:#779cff; box-shadow:0 0 12px rgba(105,145,255,.75); }
+#mission-simulation-actions { display:flex; align-items:center; justify-content:center; gap:9px; }
 .mission-sim-button { padding:10px 14px; border:1px solid rgba(135,165,255,.28); border-radius:18px; background:rgba(12,23,57,.78); color:#e3eaff; cursor:pointer; backdrop-filter:blur(12px); }
 #mission-vehicle-button { color:#aecaFF; }
 #mission-vehicle-info {
-  position:absolute; z-index:4; right:16px; bottom:74px; width:min(360px,calc(100% - 32px)); padding:18px;
+  position:absolute; z-index:4; right:16px; bottom:108px; width:min(360px,calc(100% - 32px)); padding:18px;
   border:1px solid rgba(135,165,255,.22); border-radius:16px; background:rgba(4,11,31,.96);
   box-shadow:0 18px 70px #0009; visibility:hidden; opacity:0; transform:translateY(10px); transition:.18s;
 }
@@ -78,12 +85,12 @@
 @media (max-width:540px) {
   #mission-simulation-header { grid-template-columns:auto 1fr; }
   #mission-accuracy { grid-column:1/-1; justify-self:center; }
-  #mission-simulation-status { top:108px; right:10px; left:10px; width:auto; }
+  #mission-simulation-status { top:94px; right:10px; left:10px; width:auto; }
   #mission-simulation-name { font-size:15px; }
   #mission-simulation-controls { right:8px; left:8px; }
   .mission-sim-button { padding:9px 11px; font-size:11px; }
-  #mission-vehicle-info { right:10px; bottom:68px; width:calc(100% - 20px); }
-  #mission-story-panel { top:auto; right:10px; bottom:64px; left:10px; width:auto; height:31vh; }
+  #mission-vehicle-info { right:10px; bottom:104px; width:calc(100% - 20px); }
+  #mission-story-panel { top:auto; right:10px; bottom:90px; left:10px; width:auto; height:31vh; }
   #mission-story-scroll { font-size:12px; line-height:1.6; }
   #mission-story-scroll h2 { font-size:19px; }
 }

@@ -103,6 +103,9 @@ test('объём пояса Койпера включает наклонённу
 
 test('каталог миссий доступен с карты и блокирует неподготовленные симуляции', () => {
     assert.match(html, /id="launch-btn"[^>]*>🚀 Запустить ракету/);
+    assert.match(html, /id="hud-left">[\s\S]*?id="date-label"[\s\S]*?id="now-btn">Сегодня<\/button>/);
+    assert.match(html, /id="hud-right">[\s\S]*?id="view-mode-btn"[\s\S]*?id="launch-btn"/);
+    assert.doesNotMatch(html, /id="time-actions"/);
     assert.match(html, /id="mission-catalog"[^>]+aria-hidden="true"/);
     assert.match(html, /id="mission-grid"/);
     assert.match(html, /id="mission-detail"[^>]+aria-labelledby="mission-detail-name"/);
@@ -117,6 +120,12 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /id="mission-simulation-event-description"/);
     assert.match(html, /id="mission-story-panel"/);
     assert.match(html, /id="mission-story-scroll"/);
+    assert.match(html, /id="mission-progress" type="range" min="0" max="1000"/);
+    assert.match(html, /missionProgress\.addEventListener\('input'/);
+    assert.match(html, /missionElapsedMs = Number\(event\.currentTarget\.value\) \/ 1000 \* missionPresentationMs/);
+    assert.match(html, /setMissionSimulationPaused\(true\)/);
+    assert.doesNotMatch(html, /function startMissionSimulation\(mission\) \{\s*closeMissionDetail\(\);\s*closeMissionCatalog\(\)/);
+    assert.match(html, /Вернуться к списку миссий/);
     assert.match(html, /populateMissionStory\(mission\)/);
     assert.match(html, /updateMissionStory\(progress\)/);
     assert.match(html, /getImg\('planets\/earth\.png'\)/);

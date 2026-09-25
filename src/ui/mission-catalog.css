@@ -1,6 +1,5 @@
-#time-actions { display:flex; flex-direction:column; align-items:stretch; gap:5px; }
 #launch-btn {
-  pointer-events:all; padding:6px 13px; border-radius:20px; white-space:nowrap;
+  pointer-events:all; height:29px; padding:5px 13px; border-radius:20px; white-space:nowrap;
   border:1px solid rgba(130,160,255,.35);
   background:linear-gradient(135deg,rgba(79,118,255,.24),rgba(132,83,255,.2));
   color:rgba(225,233,255,.92); font-size:12px; cursor:pointer;

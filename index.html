@@ -15,8 +15,8 @@
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
   <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
-  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.1">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.2.0">
+  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.2">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.2.1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -75,6 +75,7 @@
     }
     #view-mode-btn {
       min-width: 76px;
+      height: 29px;
       border-radius: 20px;
       font-size: 12px;
       padding: 5px 10px;
@@ -171,6 +172,7 @@
       color: rgba(255,255,255,0.65);
       font-size: 12px;
       padding: 5px 13px;
+      height: 29px;
       cursor: pointer;
       transition: background 0.15s;
     }
@@ -178,9 +180,10 @@
 
     @media (max-width: 520px) {
       #hud { padding: 8px 9px; align-items: flex-start; }
-      #hud-right { gap: 5px; flex-wrap: wrap; max-width: 225px; }
+      #hud-left { gap: 4px; }
+      #hud-right { gap: 5px; flex-wrap: wrap; max-width: 210px; }
       #view-mode-btn { min-width: 68px; padding-left: 8px; padding-right: 8px; }
-      #now-btn { padding-left: 10px; padding-right: 10px; }
+      #now-btn { padding-left: 7px; padding-right: 7px; font-size: 11px; }
       body.volume-view #tilt-controls { order: 3; margin-left: auto; }
     }
 
@@ -378,17 +381,15 @@
     <div id="hud-left">
       <button id="pause-btn" title="Пауза / Пуск">▶</button>
       <div id="date-label" title="Двойной клик — задать дату"></div>
+      <button id="now-btn">Сегодня</button>
     </div>
     <div id="hud-right">
       <button id="view-mode-btn" type="button" aria-pressed="false" title="Переключить вид карты">2D</button>
+      <button id="launch-btn" type="button">🚀 Запустить ракету</button>
       <div id="tilt-controls" role="group" aria-label="Наклон 3D-вида">
         <button class="tilt-btn" id="tilt-down" type="button" aria-label="Уменьшить наклон">−</button>
         <span id="tilt-value" aria-live="polite">42°</span>
         <button class="tilt-btn" id="tilt-up" type="button" aria-label="Увеличить наклон">+</button>
-      </div>
-      <div id="time-actions">
-        <button id="now-btn">⦿ Сейчас</button>
-        <button id="launch-btn" type="button">🚀 Запустить ракету</button>
       </div>
     </div>
   </div>
@@ -465,7 +466,7 @@
   <section id="mission-simulation" aria-hidden="true" aria-label="Симуляция космической миссии">
     <canvas id="mission-simulation-canvas"></canvas>
     <header id="mission-simulation-header">
-      <button class="mission-icon-btn" id="mission-simulation-exit" type="button">← Выйти</button>
+      <button class="mission-icon-btn" id="mission-simulation-exit" type="button">← К миссиям</button>
       <div id="mission-simulation-title">
         <div id="mission-simulation-name"></div>
         <div id="mission-simulation-date"></div>
@@ -485,8 +486,15 @@
       </div>
     </aside>
     <div id="mission-simulation-controls">
-      <button class="mission-sim-button" id="mission-simulation-pause" type="button">⏸ Пауза</button>
-      <button class="mission-sim-button" id="mission-vehicle-button" type="button">● Об аппарате</button>
+      <div id="mission-timeline">
+        <span>Старт</span>
+        <input id="mission-progress" type="range" min="0" max="1000" value="0" step="1" aria-label="Ход миссии">
+        <span>Финиш</span>
+      </div>
+      <div id="mission-simulation-actions">
+        <button class="mission-sim-button" id="mission-simulation-pause" type="button">▶ Старт</button>
+        <button class="mission-sim-button" id="mission-vehicle-button" type="button">● Об аппарате</button>
+      </div>
     </div>
     <aside id="mission-vehicle-info" aria-hidden="true">
       <button class="mission-icon-btn" id="mission-vehicle-close" type="button" aria-label="Закрыть информацию">×</button>
@@ -499,8 +507,8 @@
       <div id="mission-complete-card">
         <h2>Полёт завершён</h2>
         <div id="mission-complete-result"></div>
-        <p>Сценарий завершён. После подтверждения карта вернётся к сегодняшней дате.</p>
-        <button id="mission-complete-confirm" type="button">Вернуться к карте</button>
+        <p>Сценарий завершён. После подтверждения откроется список миссий.</p>
+        <button id="mission-complete-confirm" type="button">Вернуться к списку миссий</button>
       </div>
     </div>
   </section>
@@ -2017,6 +2025,14 @@
     let missionSimulationPaused = false;
     let missionSimulationFrame = null;
     let missionVehicleHit = null;
+    const missionProgress = document.getElementById('mission-progress');
+
+    function setMissionSimulationPaused(value) {
+      missionSimulationPaused = value;
+      const button = document.getElementById('mission-simulation-pause');
+      if (!value) button.textContent = '⏸ Пауза';
+      else button.textContent = missionElapsedMs <= 0 ? '▶ Старт' : '▶ Продолжить';
+    }
 
     function resizeMissionSimulation() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2218,6 +2234,8 @@
       if (!missionSimulationPaused) missionElapsedMs += timestamp - missionLastFrame;
       missionLastFrame = timestamp;
       const progress = Math.min(1, missionElapsedMs / missionPresentationMs);
+      missionProgress.value = String(Math.round(progress * 1000));
+      missionProgress.setAttribute('aria-valuetext', `${Math.round(progress * 100)}%`);
       const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
       const event = missionSimulationApi.currentEventAtProgress(activeMission, progress);
       simTime = date;
@@ -2231,6 +2249,7 @@
       drawMissionSimulation(progress, timestamp);
 
       if (progress >= 1) {
+        setMissionSimulationPaused(true);
         document.getElementById('mission-complete-result').textContent = missionSimulationApi.outcomeLabel(activeMission.status);
         document.getElementById('mission-complete').classList.add('open');
         document.getElementById('mission-complete').setAttribute('aria-hidden', 'false');
@@ -2260,13 +2279,12 @@
 
     function startMissionSimulation(mission) {
       closeMissionDetail();
-      closeMissionCatalog();
       activeMission = mission;
       paused = true;
       updatePauseBtn();
       missionElapsedMs = 0;
       missionLastFrame = null;
-      missionSimulationPaused = false;
+      missionSimulationPaused = true;
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
       document.getElementById('mission-simulation-name').textContent = mission.name;
       document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
@@ -2274,7 +2292,9 @@
       document.getElementById('mission-simulation-note').textContent = segment.orbit.returnMode === 'burn-up'
         ? `Показаны ${segment.orbit.displayOrbits} опорных витка; скорость анимации выровнена, месяцы миссии сжаты до длины рассказа.`
         : 'Траектория и высота орбиты увеличены для наглядности; скорость анимации выровнена, события идут по исторической хронологии.';
-      document.getElementById('mission-simulation-pause').textContent = '⏸ Пауза';
+      missionProgress.value = '0';
+      missionProgress.setAttribute('aria-valuetext', '0%');
+      setMissionSimulationPaused(true);
       document.getElementById('mission-complete').classList.remove('open');
       document.getElementById('mission-complete').setAttribute('aria-hidden', 'true');
       closeMissionVehicle();
@@ -2282,6 +2302,7 @@
       getImg('planets/earth.png');
       getImg('moons/moon.png');
       resizeMissionSimulation();
+      missionCatalog.inert = true;
       missionSimulation.classList.add('open');
       missionSimulation.setAttribute('aria-hidden', 'false');
       document.getElementById('mission-simulation-exit').focus();
@@ -2289,18 +2310,24 @@
     }
 
     function exitMissionSimulation() {
+      const missionId = activeMission?.id;
       if (missionSimulationFrame !== null) cancelAnimationFrame(missionSimulationFrame);
       missionSimulationFrame = null;
       activeMission = null;
       missionVehicleHit = null;
       missionSimulation.classList.remove('open');
       missionSimulation.setAttribute('aria-hidden', 'true');
+      missionCatalog.inert = false;
       document.getElementById('mission-complete').classList.remove('open');
       closeMissionVehicle();
       simTime = new Date();
-      paused = false;
+      paused = true;
       updatePauseBtn();
-      requestAnimationFrame(() => document.getElementById('launch-btn').focus());
+      requestAnimationFrame(() => (
+        document.querySelector(`.mission-card[data-mission-id="${missionId}"]`)
+        || document.querySelector('.mission-card')
+        || document.getElementById('mission-catalog-close')
+      ).focus());
     }
 
     window.addEventListener('solar:mission-simulation-request', event => {
@@ -2312,9 +2339,19 @@
     document.getElementById('mission-complete-confirm').addEventListener('click', exitMissionSimulation);
     document.getElementById('mission-vehicle-button').addEventListener('click', showMissionVehicle);
     document.getElementById('mission-vehicle-close').addEventListener('click', closeMissionVehicle);
-    document.getElementById('mission-simulation-pause').addEventListener('click', event => {
-      missionSimulationPaused = !missionSimulationPaused;
-      event.currentTarget.textContent = missionSimulationPaused ? '▶ Продолжить' : '⏸ Пауза';
+    document.getElementById('mission-simulation-pause').addEventListener('click', () => {
+      setMissionSimulationPaused(!missionSimulationPaused);
+      missionLastFrame = null;
+    });
+    missionProgress.addEventListener('input', event => {
+      missionElapsedMs = Number(event.currentTarget.value) / 1000 * missionPresentationMs;
+      setMissionSimulationPaused(true);
+      missionLastFrame = null;
+      document.getElementById('mission-complete').classList.remove('open');
+      document.getElementById('mission-complete').setAttribute('aria-hidden', 'true');
+      if (missionSimulationFrame === null && activeMission) {
+        missionSimulationFrame = requestAnimationFrame(updateMissionSimulation);
+      }
     });
     missionSimulationCanvas.addEventListener('click', event => {
       if (!missionVehicleHit) return;
