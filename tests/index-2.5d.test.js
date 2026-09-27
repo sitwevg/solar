@@ -72,6 +72,14 @@ test('семантический зум удерживает маркеры и �
     assert.match(html, /wheelZoomFactor\(e\.deltaY, e\.deltaMode, window\.innerHeight\)/);
 });
 
+test('Тритон движется ретроградно в обоих масштабах карты', () => {
+    assert.match(html, /name: 'Тритон'[\s\S]*?orbitDirection: -1/);
+    assert.match(html, /function moonOrbitAngle\(date, moon\)/);
+    assert.match(html, /\* \(moon\.orbitDirection \?\? 1\)/);
+    assert.match(html, /drawMoon\(px, py, moonOrbitAngle\(simTime, moon\)/);
+    assert.match(html, /angle = moonOrbitAngle\(zoomTime, moon\)/);
+});
+
 test('карточки разделяют пояс Койпера и более далёкие области', () => {
     assert.match(html, /name: 'Пояс Койпера \(30–55 а\.е\.\)'/);
     assert.match(html, /distantRegions: \{/);
@@ -131,6 +139,7 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /Вернуться к списку миссий/);
     assert.match(html, /populateMissionStory\(mission\)/);
     assert.match(html, /updateMissionStory\(progress\)/);
+    assert.match(html, /missionSimulationApi\.traveledPath\(activeMission, progress\)/);
     assert.match(html, /const narrativeProgress = Math\.max\(0, Math\.min\(1, progress\)\)/);
     assert.doesNotMatch(html, /mission-story-milestone/);
     assert.doesNotMatch(html, /function missionReturnProgress/);

@@ -52,6 +52,18 @@ test('угловое движение равномерно, а возвраще�
     });
 });
 
+test('синяя траектория накапливается только за пройденной частью полёта', () => {
+    const mission = missions.find(item => item.id === 'sputnik-1');
+    const start = simulation.traveledPath(mission, 0);
+    const middle = simulation.traveledPath(mission, 0.5);
+    const finish = simulation.traveledPath(mission, 1);
+    assert.deepEqual(start, []);
+    assert.ok(middle.length > 2);
+    assert.ok(finish.length > middle.length);
+    assert.deepEqual(middle.at(-1), simulation.positionAtProgress(mission, 0.5));
+    assert.deepEqual(finish.at(-1), simulation.positionAtProgress(mission, 1));
+});
+
 test('время сценария движется между реальными датами сегмента', () => {
     const mission = missions.find(item => item.id === 'vostok-1');
     const segment = simulation.orbitalSegment(mission);

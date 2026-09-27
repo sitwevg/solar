@@ -111,6 +111,16 @@
         ));
     }
 
+    function traveledPath(mission, progress, maximumSampleCount = 320) {
+        if (!orbitalSegment(mission)) return [];
+        const shownProgress = clamp(progress, 0, 1);
+        if (shownProgress <= 0) return [];
+        const sampleCount = Math.max(2, Math.ceil(maximumSampleCount * shownProgress));
+        return Array.from({ length: sampleCount + 1 }, (_, index) => (
+            positionAtProgress(mission, shownProgress * index / sampleCount)
+        ));
+    }
+
     function currentEvent(mission, date) {
         if (!date) return null;
         return mission.events
@@ -150,7 +160,7 @@
 
     return Object.freeze({
         EARTH_RADIUS_KM, ACCURACY_LABELS, orbitalSegment, presentationDurationSeconds,
-        missionDateAtProgress, positionAtProgress, orbitPath, currentEvent, currentEventAtProgress,
+        missionDateAtProgress, positionAtProgress, orbitPath, traveledPath, currentEvent, currentEventAtProgress,
         formatUtcDateTime, outcomeLabel
     });
 }));

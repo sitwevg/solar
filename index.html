@@ -13,7 +13,7 @@
   <script src="src/data/missions.js?v=0.3.2"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.2.2"></script>
+  <script src="src/core/mission-simulation.js?v=0.2.3"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
@@ -899,7 +899,7 @@
       Neptune: [
         { name: 'Тритон', color: '#90b8d8',
           img: 'moons/Triton.jpg',
-          orbitR: 65, periodDays: 5.877, diamKm: 2707, distKm: 354760,
+          orbitR: 65, periodDays: 5.877, orbitDirection: -1, diamKm: 2707, distKm: 354760,
           desc: 'Тритон — чужак в системе Нептуна: он движется в обратную сторону относительно вращения планеты, а значит, скорее всего был захвачен из пояса Койпера миллиарды лет назад. За такое «неправильное» поведение приходится платить: приливные силы Нептуна постепенно тормозят Тритон, и через ~3.6 млрд лет он разрушится — то ли упадёт, то ли образует новое кольцо. При этом на поверхности, где стоит −235°C, фонтанируют азотные гейзеры — невероятное зрелище на почти безжизненной планете. Единственный визит нанёс «Вояджер-2» в 1989 году.' }
       ],
       Pluto: [
@@ -912,6 +912,10 @@
 
     // ── Planet data ───────────────────────────────────────────────────
     const AU_KM = 149597870.7;
+
+    function moonOrbitAngle(date, moon) {
+      return (date.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2 * (moon.orbitDirection ?? 1);
+    }
 
     const PLANETS = [
       {
@@ -1577,10 +1581,9 @@
         if (!p.hasMoon && !p.hasGalilean) {
           const moons = MOON_DATA[p.body] || [];
           if (moons.length) {
-            const d = simTime.getTime() / MS_PER_DAY;
             const minOff = p.hasRings ? Math.ceil(p.r * 2.5) : p.r + 6;
             moons.forEach((moon, i) => {
-              drawMoon(px, py, (d / moon.periodDays) * Math.PI * 2, (minOff + i * 7) * moonOrbitScale, moon.color, 1.5, 0.9 * moonVis, moonUiScale);
+              drawMoon(px, py, moonOrbitAngle(simTime, moon), (minOff + i * 7) * moonOrbitScale, moon.color, 1.5, 0.9 * moonVis, moonUiScale);
             });
           }
         }
@@ -2142,7 +2145,7 @@
       ctx.textAlign = 'center';
       ctx.fillText('Луна', moonX, moonY - moonRadius - 8);
 
-      const path = missionSimulationApi.orbitPath(activeMission);
+      const path = missionSimulationApi.traveledPath(activeMission, progress);
       const segment = missionSimulationApi.orbitalSegment(activeMission);
       const altitudeRoom = Math.max(24, Math.min(44, earthRadius * .28));
       const maximumAltitude = Math.max(1, segment.orbit.apogeeKm);
@@ -2155,14 +2158,16 @@
         };
       };
 
-      ctx.beginPath();
-      path.forEach((point, index) => {
-        const screen = screenPoint(point);
-        if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
-      });
-      ctx.strokeStyle = 'rgba(104,145,255,.28)';
-      ctx.lineWidth = 1.4;
-      ctx.stroke();
+      if (path.length > 1) {
+        ctx.beginPath();
+        path.forEach((point, index) => {
+          const screen = screenPoint(point);
+          if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
+        });
+        ctx.strokeStyle = 'rgba(104,145,255,.28)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
 
       ctx.save();
       ctx.shadowBlur = earthRadius * .7;
@@ -2740,15 +2745,15 @@
             const eps = 23.44 * Math.PI / 180;
             const moonY = gm.y * Math.cos(eps) + gm.z * Math.sin(eps);
             angle = Math.atan2(moonY, gm.x);
-          } catch(e) { angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2; }
+          } catch(e) { angle = moonOrbitAngle(zoomTime, moon); }
         } else if (zoomPlanet.body === 'Jupiter') {
           try {
             const jm = Astronomy.JupiterMoons(zoomTime);
             const arr = [jm.io, jm.europa, jm.ganymede, jm.callisto];
             angle = Math.atan2(arr[i].y, arr[i].x);
-          } catch(e) { angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2; }
+          } catch(e) { angle = moonOrbitAngle(zoomTime, moon); }
         } else {
-          angle = (zoomTime.getTime() / MS_PER_DAY / moon.periodDays) * Math.PI * 2;
+          angle = moonOrbitAngle(zoomTime, moon);
         }
 
         const or = moonDisplayR(moon.orbitR);
