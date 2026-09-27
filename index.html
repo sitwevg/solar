@@ -16,7 +16,7 @@
   <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.2">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.0">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -2063,35 +2063,13 @@
       return true;
     }
 
-    function missionReturnProgress(mission) {
-      const event = mission.events.find(item => (
-        ['return', 'mission-end'].includes(item.type) && Number.isFinite(item.simulationProgress)
-      ));
-      return Math.max(.72, Math.min(.96, event?.simulationProgress ?? .88));
-    }
-
     function populateMissionStory(mission) {
       const story = document.getElementById('mission-story-scroll');
       const title = document.createElement('h2');
       title.textContent = mission.name;
       const narrative = mission.simulationStory || mission.story;
       const content = [title];
-      narrative.forEach((text, index) => {
-        mission.events
-          .filter(event => Math.min(narrative.length - 1, Math.floor((event.simulationProgress ?? 0) * narrative.length)) === index)
-          .forEach(event => {
-            const milestone = document.createElement('section');
-            milestone.className = 'mission-story-milestone';
-            milestone.dataset.eventId = event.id;
-            const time = document.createElement('time');
-            time.textContent = missionSimulationApi.formatUtcDateTime(new Date(event.date));
-            const heading = document.createElement('h3');
-            heading.textContent = event.title;
-            const description = document.createElement('p');
-            description.textContent = event.description || '';
-            milestone.append(time, heading, description);
-            content.push(milestone);
-          });
+      narrative.forEach(text => {
         const paragraph = document.createElement('p');
         paragraph.className = 'mission-story-paragraph';
         paragraph.textContent = text;
@@ -2107,8 +2085,7 @@
     function updateMissionStory(progress) {
       const viewport = document.getElementById('mission-story-viewport');
       const story = document.getElementById('mission-story-scroll');
-      const returnAt = missionReturnProgress(activeMission);
-      const narrativeProgress = Math.max(0, Math.min(1, progress / returnAt));
+      const narrativeProgress = Math.max(0, Math.min(1, progress));
       const startY = viewport.clientHeight * .58;
       const endY = -story.scrollHeight - 8;
       story.style.transform = `translateY(${startY + (endY - startY) * narrativeProgress}px)`;
@@ -2249,12 +2226,8 @@
       missionProgress.value = String(Math.round(progress * 1000));
       missionProgress.setAttribute('aria-valuetext', `${Math.round(progress * 100)}%`);
       const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
-      const event = missionSimulationApi.currentEventAtProgress(activeMission, progress);
       simTime = date;
       document.getElementById('mission-simulation-date').textContent = missionSimulationApi.formatUtcDateTime(date);
-      document.querySelectorAll('.mission-story-milestone').forEach(element => {
-        element.classList.toggle('current', element.dataset.eventId === event?.id);
-      });
       updateMissionStory(progress);
       drawMissionSimulation(progress, timestamp);
 
@@ -2272,6 +2245,8 @@
 
     function showMissionVehicle() {
       if (!activeMission?.vehicle) return;
+      setMissionSimulationPaused(true);
+      missionLastFrame = null;
       const vehicle = activeMission.vehicle;
       document.getElementById('mission-vehicle-name').textContent = vehicle.name;
       document.getElementById('mission-vehicle-type').textContent = vehicle.type;
@@ -2285,13 +2260,23 @@
       document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'false');
       missionSimulation.classList.add('vehicle-open');
       document.getElementById('mission-story-panel').setAttribute('aria-hidden', 'true');
+      const controls = document.getElementById('mission-simulation-controls');
+      controls.inert = true;
+      controls.setAttribute('aria-hidden', 'true');
+      document.getElementById('mission-vehicle-close').focus();
     }
 
-    function closeMissionVehicle() {
+    function closeMissionVehicle({ restoreFocus = false } = {}) {
       document.getElementById('mission-vehicle-info').classList.remove('open');
       document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'true');
       missionSimulation.classList.remove('vehicle-open');
       document.getElementById('mission-story-panel').setAttribute('aria-hidden', 'false');
+      const controls = document.getElementById('mission-simulation-controls');
+      controls.inert = false;
+      controls.setAttribute('aria-hidden', 'false');
+      if (restoreFocus) {
+        requestAnimationFrame(() => document.getElementById('mission-simulation-pause').focus());
+      }
     }
 
     function startMissionSimulation(mission) {
@@ -2351,7 +2336,7 @@
     document.getElementById('mission-simulation-exit').addEventListener('click', exitMissionSimulation);
     document.getElementById('mission-complete-confirm').addEventListener('click', exitMissionSimulation);
     document.getElementById('mission-vehicle-button').addEventListener('click', showMissionVehicle);
-    document.getElementById('mission-vehicle-close').addEventListener('click', closeMissionVehicle);
+    document.getElementById('mission-vehicle-close').addEventListener('click', () => closeMissionVehicle({ restoreFocus: true }));
     document.getElementById('mission-simulation-pause').addEventListener('click', () => {
       setMissionSimulationPaused(!missionSimulationPaused);
       missionLastFrame = null;

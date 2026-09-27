@@ -7,6 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf8');
+const missionSimulationCss = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'ui', 'mission-simulation.css'), 'utf8');
 
 test('все встроенные JavaScript-блоки index.html синтаксически корректны', () => {
     const scriptPattern = /<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi;
@@ -127,11 +128,19 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /Вернуться к списку миссий/);
     assert.match(html, /populateMissionStory\(mission\)/);
     assert.match(html, /updateMissionStory\(progress\)/);
+    assert.match(html, /const narrativeProgress = Math\.max\(0, Math\.min\(1, progress\)\)/);
+    assert.doesNotMatch(html, /mission-story-milestone/);
+    assert.doesNotMatch(html, /function missionReturnProgress/);
     assert.match(html, /getImg\('planets\/earth\.png'\)/);
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
     assert.match(html, /id="mission-vehicle-image"/);
     assert.match(html, /missionSimulation\.classList\.add\('vehicle-open'\)/);
+    assert.match(html, /function showMissionVehicle\(\) \{[\s\S]*?setMissionSimulationPaused\(true\)/);
+    assert.match(html, /controls\.inert = true/);
+    assert.match(html, /controls\.setAttribute\('aria-hidden', 'true'\)/);
+    assert.match(html, /closeMissionVehicle\(\{ restoreFocus: true \}\)/);
+    assert.match(missionSimulationCss, /#mission-simulation\.vehicle-open #mission-simulation-controls[\s\S]*?visibility:hidden; opacity:0; pointer-events:none/);
     assert.match(html, /Полёт завершён/);
     assert.match(html, /simTime = new Date\(\)/);
 });
