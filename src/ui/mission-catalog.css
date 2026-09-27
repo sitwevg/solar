@@ -95,9 +95,8 @@
 #mission-source-list { display:flex; flex-wrap:wrap; gap:7px; }
 .mission-source { padding:7px 10px; border:1px solid rgba(135,160,255,.18); border-radius:10px; background:rgba(95,125,210,.08); color:rgba(175,198,255,.78); font-size:11px; text-decoration:none; }
 .mission-source:hover { border-color:rgba(145,175,255,.4); color:#dce6ff; }
-#mission-simulate { width:100%; margin-top:26px; padding:13px 16px; border:1px solid rgba(125,160,255,.38); border-radius:13px; background:rgba(76,112,225,.25); color:#e4ebff; font-size:14px; font-weight:600; cursor:pointer; }
+#mission-simulate { justify-self:end; min-height:36px; padding:7px 14px; border:1px solid rgba(125,160,255,.38); border-radius:18px; background:rgba(76,112,225,.25); color:#e4ebff; font-size:12px; font-weight:600; white-space:nowrap; cursor:pointer; }
 #mission-simulate:disabled { border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.045); color:rgba(255,255,255,.38); cursor:not-allowed; }
-#mission-simulate-note { margin-top:7px; color:rgba(255,255,255,.34); font-size:10px; text-align:center; }
 .status-success { --status-color:#66dc9a; }
 .status-partial { --status-color:#f2c96b; }
 .status-active { --status-color:#78b9ff; }
@@ -112,6 +111,8 @@
   #now-btn,#launch-btn { padding-left:10px; padding-right:10px; }
   #launch-btn { font-size:11px; }
   #mission-catalog-header,#mission-detail-header { gap:7px; padding-left:10px; padding-right:10px; }
+  #mission-detail-header-title { display:none; }
+  #mission-simulate { grid-column:3; max-width:148px; overflow:hidden; padding:7px 10px; font-size:11px; text-overflow:ellipsis; }
   #mission-catalog-title strong { font-size:16px; }
   #mission-catalog-content,#mission-detail-content { padding-left:12px; padding-right:12px; }
   #mission-grid { grid-template-columns:1fr; }

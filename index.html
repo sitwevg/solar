@@ -15,7 +15,7 @@
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
   <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
-  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.2">
+  <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -431,7 +431,7 @@
       <header id="mission-detail-header">
         <button class="mission-icon-btn" id="mission-detail-back" type="button">← К списку</button>
         <div id="mission-detail-header-title">Карточка миссии</div>
-        <div aria-hidden="true" style="width:42px"></div>
+        <button id="mission-simulate" type="button" disabled>Траектория готовится</button>
       </header>
       <div id="mission-detail-scroll">
         <div id="mission-detail-content">
@@ -456,8 +456,6 @@
             <h3>Источники</h3>
             <div id="mission-source-list"></div>
           </section>
-          <button id="mission-simulate" type="button" disabled>Траектория готовится</button>
-          <p id="mission-simulate-note">Симуляция станет доступна после подготовки и проверки траектории.</p>
         </div>
       </div>
     </article>
@@ -1923,7 +1921,7 @@
       const simulate = document.getElementById('mission-simulate');
       simulate.disabled = !ready;
       simulate.textContent = ready ? '▶ Запустить полёт' : 'Траектория готовится';
-      document.getElementById('mission-simulate-note').textContent = ready
+      simulate.title = ready
         ? 'Карта переключится на дату запуска и покажет учебную реконструкцию.'
         : 'Симуляция станет доступна после подготовки и проверки траектории.';
 

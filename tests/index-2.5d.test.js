@@ -110,6 +110,9 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /id="mission-catalog"[^>]+aria-hidden="true"/);
     assert.match(html, /id="mission-grid"/);
     assert.match(html, /id="mission-detail"[^>]+aria-labelledby="mission-detail-name"/);
+    assert.match(html, /id="mission-detail-header">[\s\S]*?id="mission-detail-header-title"[\s\S]*?id="mission-simulate"/);
+    assert.equal((html.match(/id="mission-simulate"/g) || []).length, 1);
+    assert.doesNotMatch(html, /id="mission-simulate-note"/);
     assert.match(html, /<h3>История миссии<\/h3>/);
     assert.match(html, /id="mission-story"/);
     assert.match(html, /mission\.story\.forEach/);
@@ -137,6 +140,7 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /id="mission-vehicle-image"/);
     assert.match(html, /src\/data\/missions\.js\?v=0\.3\.2/);
     assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.3\.2/);
+    assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);
     assert.match(html, /const MISSION_VEHICLE_ASSET_VERSION = '0\.3\.2'/);
     assert.match(html, /panel\.dataset\.missionId = mission\.id/);
     assert.match(html, /image\.removeAttribute\('src'\)/);
