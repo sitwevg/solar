@@ -64,7 +64,8 @@
 #mission-story-panel { transition:opacity .18s,transform .18s,visibility 0s linear 0s; }
 #mission-simulation.vehicle-open #mission-story-panel { visibility:hidden; opacity:0; pointer-events:none; transform:translateX(12px); transition-delay:0s,0s,.18s; }
 #mission-vehicle-figure { overflow:hidden; margin:-18px -18px 16px; border-radius:16px 16px 0 0; background:#11141b; }
-#mission-vehicle-image { display:block; width:100%; max-height:310px; object-fit:cover; object-position:center; }
+#mission-vehicle-image { display:block; width:100%; min-height:180px; max-height:310px; object-fit:cover; object-position:center; background:#080d18; transition:opacity .15s; }
+#mission-vehicle-image.loading { opacity:0; }
 #mission-vehicle-figure figcaption { padding:6px 12px; color:rgba(190,207,255,.45); font-size:9px; text-align:right; }
 #mission-vehicle-info h3 { padding-right:32px; font-size:19px; }
 #mission-vehicle-type { margin-top:4px; color:rgba(190,207,255,.56); font-size:11px; }

@@ -10,13 +10,13 @@
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
   <script src="src/core/mission-schema.js?v=0.3.1"></script>
-  <script src="src/data/missions.js?v=0.3.1"></script>
+  <script src="src/data/missions.js?v=0.3.2"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
   <script src="src/core/mission-simulation.js?v=0.2.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.2">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.1">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -2023,6 +2023,8 @@
     let missionSimulationPaused = false;
     let missionSimulationFrame = null;
     let missionVehicleHit = null;
+    let missionVehicleRenderToken = 0;
+    const MISSION_VEHICLE_ASSET_VERSION = '0.3.2';
     const missionProgress = document.getElementById('mission-progress');
 
     function setMissionSimulationPaused(value) {
@@ -2243,19 +2245,44 @@
       missionSimulationFrame = requestAnimationFrame(updateMissionSimulation);
     }
 
-    function showMissionVehicle() {
-      if (!activeMission?.vehicle) return;
-      setMissionSimulationPaused(true);
-      missionLastFrame = null;
-      const vehicle = activeMission.vehicle;
+    function populateMissionVehicle(mission) {
+      if (!mission?.vehicle) return;
+      const vehicle = mission.vehicle;
+      const renderToken = ++missionVehicleRenderToken;
+      const panel = document.getElementById('mission-vehicle-info');
+      panel.dataset.missionId = mission.id;
       document.getElementById('mission-vehicle-name').textContent = vehicle.name;
       document.getElementById('mission-vehicle-type').textContent = vehicle.type;
       document.getElementById('mission-vehicle-mass').textContent = `Масса: ${vehicle.massKg.toLocaleString('ru-RU')} кг`;
       const image = document.getElementById('mission-vehicle-image');
-      image.src = vehicle.image;
       image.alt = vehicle.imageAlt;
+      image.removeAttribute('src');
+      image.classList.add('loading');
+      image.dataset.missionId = mission.id;
+      const imageUrl = new URL(vehicle.image, document.baseURI);
+      imageUrl.searchParams.set('v', MISSION_VEHICLE_ASSET_VERSION);
+      const loader = new Image();
+      loader.decoding = 'async';
+      loader.onload = () => {
+        if (renderToken !== missionVehicleRenderToken || panel.dataset.missionId !== mission.id) return;
+        image.src = imageUrl.href;
+        image.classList.remove('loading');
+      };
+      loader.onerror = () => {
+        if (renderToken !== missionVehicleRenderToken || panel.dataset.missionId !== mission.id) return;
+        image.classList.remove('loading');
+      };
+      loader.src = imageUrl.href;
       const facts = document.getElementById('mission-vehicle-facts');
       facts.replaceChildren(...vehicle.facts.map(fact => missionElement('li', '', fact)));
+    }
+
+    function showMissionVehicle() {
+      if (!activeMission?.vehicle) return;
+      setMissionSimulationPaused(true);
+      missionLastFrame = null;
+      const panel = document.getElementById('mission-vehicle-info');
+      if (panel.dataset.missionId !== activeMission.id) populateMissionVehicle(activeMission);
       document.getElementById('mission-vehicle-info').classList.add('open');
       document.getElementById('mission-vehicle-info').setAttribute('aria-hidden', 'false');
       missionSimulation.classList.add('vehicle-open');
@@ -2288,6 +2315,7 @@
       missionLastFrame = null;
       missionSimulationPaused = true;
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
+      populateMissionVehicle(mission);
       document.getElementById('mission-simulation-name').textContent = mission.name;
       document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
       missionProgress.value = '0';
