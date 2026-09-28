@@ -111,3 +111,15 @@ test('схема отклоняет дубликаты и готовую тра�
     assert.ok(result.errors.some((error) => error.includes('дубликат')));
     assert.ok(result.errors.some((error) => error.includes('хотя бы один сегмент')));
 });
+
+test('схема проверяет специальные параметры прямого спуска к Луне', () => {
+    const broken = structuredClone(missions.find(mission => mission.id === 'luna-9'));
+    const phases = broken.trajectory.segments[0].phases;
+    phases.find(phase => phase.type === 'translunar').arrivalTangent = 'teleport';
+    phases.find(phase => phase.type === 'moon-descent').radialDescent = 'yes';
+
+    const result = schema.validateCatalog([broken]);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some(error => error.includes('arrivalTangent')));
+    assert.ok(result.errors.some(error => error.includes('radialDescent')));
+});

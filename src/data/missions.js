@@ -249,7 +249,11 @@
             ], 'spacecraft/luna-2.png', 'Реалистичная учебная иллюстрация автоматической станции Луна-2'),
             trajectory: earthMoonTrajectory('1959-09-12T06:39:42Z', '1959-09-14T23:02:23Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.07, angleDeg: -55, turns: 0.08 },
-                { type: 'translunar', startProgress: 0.07, endProgress: 1, earthAngleDeg: -26.2, moonAngleDeg: 180, moonRadius: 0.045 }
+                {
+                    type: 'translunar', startProgress: 0.07, endProgress: 1,
+                    earthAngleDeg: -26.2, moonAngleDeg: 180, moonRadius: 0.045,
+                    arrivalTangent: 'radial-in'
+                }
             ], [
                 { progress: 0, date: '1959-09-12T06:39:42Z' },
                 { progress: 1, date: '1959-09-14T23:02:23Z' }
@@ -290,10 +294,18 @@
                 'С поверхности были переданы первые изображения другого небесного тела.'
             ], 'spacecraft/luna-9.png', 'Реалистичная учебная иллюстрация посадочной станции Луна-9 с раскрытыми лепестками'),
             trajectory: earthMoonTrajectory('1966-01-31T11:41:37Z', '1966-02-06T22:55:00Z', [
-                { type: 'earth-launch', startProgress: 0, endProgress: 0.06, angleDeg: -55, turns: 0.08 },
-                { type: 'translunar', startProgress: 0.06, endProgress: 0.49, earthAngleDeg: -26.2, moonAngleDeg: 180 },
-                { type: 'moon-descent', startProgress: 0.49, endProgress: 0.55, angleDeg: 180, turns: 0.25 },
-                { type: 'moon-surface', startProgress: 0.55, endProgress: 1, angleDeg: 270, turns: 0 }
+                { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -55, turns: 0.08 },
+                { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.08, angleDeg: -26.2, turns: 1 },
+                {
+                    type: 'translunar', startProgress: 0.08, endProgress: 0.49,
+                    earthAngleDeg: -26.2, moonAngleDeg: 244, moonRadius: 0.07,
+                    arrivalTangent: 'radial-in'
+                },
+                {
+                    type: 'moon-descent', startProgress: 0.49, endProgress: 0.55,
+                    angleDeg: 244, turns: 0, radius: 0.07, radialDescent: true
+                },
+                { type: 'moon-surface', startProgress: 0.55, endProgress: 1, angleDeg: 244, turns: 0 }
             ], [
                 { progress: 0, date: '1966-01-31T11:41:37Z' },
                 { progress: 0.49, date: '1966-02-03T18:20:00Z' },
@@ -341,11 +353,11 @@
                 { type: 'earth-orbit', startProgress: 0.02, endProgress: 0.1, angleDeg: -121.2, turns: 1.5 },
                 { type: 'translunar', startProgress: 0.1, endProgress: 0.42, earthAngleDeg: 58.8, moonAngleDeg: 0 },
                 { type: 'moon-orbit', startProgress: 0.42, endProgress: 0.54, angleDeg: 0, turns: 2 },
-                { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 0, turns: 0.5 },
-                { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 180, turns: 0 },
-                { type: 'moon-ascent', startProgress: 0.68, endProgress: 0.72, angleDeg: 180, turns: 0.5 },
-                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 360, turns: 1.2 },
-                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 432, earthAngleDeg: -25 },
+                { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 0, turns: 0.434361 },
+                { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 156.37, turns: 0 },
+                { type: 'moon-ascent', startProgress: 0.68, endProgress: 0.72, angleDeg: 156.37, turns: 0.5 },
+                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 336.37, turns: 1.065639 },
+                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 720, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [
                 { progress: 0, date: '1969-07-16T13:32:00Z' },
@@ -463,9 +475,9 @@
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -55, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.09, angleDeg: -26.2, turns: 1 },
                 { type: 'translunar', startProgress: 0.09, endProgress: 0.38, earthAngleDeg: -26.2, moonAngleDeg: 0 },
-                { type: 'moon-orbit', startProgress: 0.38, endProgress: 0.52, angleDeg: 0, turns: 2.5 },
-                { type: 'moon-descent', startProgress: 0.52, endProgress: 0.57, angleDeg: -180, turns: 0.5 },
-                { type: 'moon-surface', startProgress: 0.57, endProgress: 1, angleDeg: 0, turns: 0 }
+                { type: 'moon-orbit', startProgress: 0.38, endProgress: 0.52, angleDeg: 0, turns: 2.5, inclinationDeg: 141 },
+                { type: 'moon-descent', startProgress: 0.52, endProgress: 0.57, angleDeg: 180, turns: 0.097222 },
+                { type: 'moon-surface', startProgress: 0.57, endProgress: 1, angleDeg: 215, turns: 0 }
             ], [
                 { progress: 0, date: '1970-11-10T14:44:01Z' },
                 { progress: 0.09, date: '1970-11-10T16:30:00Z' },

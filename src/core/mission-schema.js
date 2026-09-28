@@ -203,12 +203,26 @@
             pushError(errors, `${path}.endProgress`, 'конец фазы должен быть позже начала');
         }
         ['angleDeg', 'turns', 'radius', 'earthAngleDeg', 'moonAngleDeg', 'earthRadius', 'moonRadius',
-            'handleScale', 'departureDirection', 'arrivalDirection']
+            'handleScale', 'departureDirection', 'arrivalDirection', 'inclinationDeg']
             .forEach((field) => {
                 if (phase[field] !== undefined && !Number.isFinite(phase[field])) {
                     pushError(errors, `${path}.${field}`, 'ожидалось конечное число');
                 }
             });
+        if (phase.arrivalTangent !== undefined) {
+            if (phase.type !== 'translunar') {
+                pushError(errors, `${path}.arrivalTangent`, 'касательная прибытия допустима только на пути к Луне');
+            } else if (!['orbit', 'radial-in'].includes(phase.arrivalTangent)) {
+                pushError(errors, `${path}.arrivalTangent`, 'ожидалось orbit или radial-in');
+            }
+        }
+        if (phase.radialDescent !== undefined) {
+            if (phase.type !== 'moon-descent') {
+                pushError(errors, `${path}.radialDescent`, 'радиальный спуск допустим только в фазе посадки');
+            } else if (typeof phase.radialDescent !== 'boolean') {
+                pushError(errors, `${path}.radialDescent`, 'ожидалось логическое значение');
+            }
+        }
         if (phase.hyperbola !== undefined) {
             if (phase.type !== 'moon-flyby') {
                 pushError(errors, `${path}.hyperbola`, 'гипербола допустима только для облёта Луны');

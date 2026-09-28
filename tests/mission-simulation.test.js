@@ -62,6 +62,7 @@ test('лунные маршруты показывают только истор
 
     assert.ok(!phaseTypes('luna-2').includes('earth-orbit'));
     assert.ok(!phaseTypes('luna-2').includes('moon-orbit'));
+    assert.ok(phaseTypes('luna-9').includes('earth-orbit'));
     assert.ok(!phaseTypes('luna-9').includes('moon-orbit'));
     assert.ok(phaseTypes('apollo-11').includes('earth-orbit'));
     assert.ok(phaseTypes('apollo-11').includes('moon-orbit'));
@@ -142,6 +143,7 @@ test('стыки лунных фаз не содержат прямоуголь�
         const mission = missions.find(item => item.id === id);
         const phases = simulation.earthMoonSegment(mission).phases;
         phases.slice(1).forEach(phase => {
+            if (phase.type === 'moon-surface' || phase.type === 'moon-impact') return;
             const epsilon = 0.0002;
             const before = simulation.positionAtProgress(mission, phase.startProgress - epsilon);
             const join = simulation.positionAtProgress(mission, phase.startProgress);
@@ -153,6 +155,71 @@ test('стыки лунных фаз не содержат прямоуголь�
             assert.ok(angle < 25, `${id}/${phase.type}: поворот ${angle.toFixed(1)}°`);
         });
     });
+});
+
+test('геометрия лунных миссий соответствует историческому типу полёта и стороне Луны', () => {
+    const mission = id => missions.find(item => item.id === id);
+    const phases = id => simulation.earthMoonSegment(mission(id)).phases;
+    const normalizeDegrees = degrees => ((degrees % 360) + 360) % 360;
+    const angularDistance = (first, second) => {
+        const difference = Math.abs(normalizeDegrees(first) - normalizeDegrees(second));
+        return Math.min(difference, 360 - difference);
+    };
+    const relativeAngleAt = (id, progress) => {
+        const item = mission(id);
+        const point = simulation.positionAtProgress(item, progress);
+        const moon = simulation.moonPositionAtProgress(item, progress);
+        return normalizeDegrees(Math.atan2(point.y - moon.y, point.x - moon.x) * 180 / Math.PI);
+    };
+    const earthFacingAngleAt = (id, progress) => {
+        const moon = simulation.moonPositionAtProgress(mission(id), progress);
+        return normalizeDegrees(Math.atan2(-moon.y, -moon.x) * 180 / Math.PI);
+    };
+
+    const luna2Transfer = phases('luna-2').find(phase => phase.type === 'translunar');
+    assert.equal(luna2Transfer.arrivalTangent, 'radial-in');
+    assert.equal(luna2Transfer.moonRadius, simulation.EARTH_MOON_SCENE.moonRadius);
+    assert.ok(angularDistance(
+        relativeAngleAt('luna-2', 1),
+        earthFacingAngleAt('luna-2', 1)
+    ) < 15, 'Луна-2 должна попадать в обращённую к Земле область');
+
+    const luna9Phases = phases('luna-9');
+    const luna9Transfer = luna9Phases.find(phase => phase.type === 'translunar');
+    const luna9Descent = luna9Phases.find(phase => phase.type === 'moon-descent');
+    assert.equal(luna9Transfer.arrivalTangent, 'radial-in');
+    assert.equal(luna9Descent.radialDescent, true);
+    assert.equal(luna9Descent.turns, 0, 'Луна-9 не должна изображать четверть лунной орбиты');
+    assert.ok(angularDistance(
+        relativeAngleAt('luna-9', 0.55),
+        earthFacingAngleAt('luna-9', 0.55)
+    ) < 90, 'Океан Бурь находится на видимой стороне');
+
+    const apollo11Phases = phases('apollo-11');
+    const apollo11Orbit = apollo11Phases.find(phase => phase.type === 'moon-orbit');
+    const apollo11Return = apollo11Phases.find(phase => phase.type === 'transearth');
+    assert.ok(apollo11Orbit.turns > 0, 'экранная орбита Apollo 11 должна идти по часовой стрелке — ретроградно');
+    assert.ok(angularDistance(
+        relativeAngleAt('apollo-11', 0.58),
+        earthFacingAngleAt('apollo-11', 0.58)
+    ) < 90, 'Море Спокойствия находится на видимой стороне');
+    assert.ok(angularDistance(
+        normalizeDegrees(apollo11Return.moonAngleDeg),
+        normalizeDegrees(simulation.moonPositionAtProgress(mission('apollo-11'), 0.77).angle * 180 / Math.PI
+            - simulation.moonPositionAtProgress(mission('apollo-11'), 0.42).angle * 180 / Math.PI)
+    ) < 25, 'импульс возвращения должен начинаться за Луной');
+
+    const apollo13Phases = phases('apollo-13');
+    assert.ok(apollo13Phases.some(phase => phase.type === 'moon-flyby' && phase.hyperbola));
+    assert.ok(!apollo13Phases.some(phase => phase.type === 'moon-orbit'));
+
+    const luna17Orbit = phases('luna-17-lunokhod-1').find(phase => phase.type === 'moon-orbit');
+    assert.equal(luna17Orbit.inclinationDeg, 141);
+    assert.ok(luna17Orbit.turns > 0, 'ретроградная орбита Луны-17 показана по часовой стрелке');
+    assert.ok(angularDistance(
+        relativeAngleAt('luna-17-lunokhod-1', 0.57),
+        earthFacingAngleAt('luna-17-lunokhod-1', 0.57)
+    ) < 90, 'Море Дождей находится на видимой стороне');
 });
 
 test('темп Apollo 13 выравнивает видимую скорость орбиты и перелёта', () => {

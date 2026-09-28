@@ -301,7 +301,12 @@
             : normalized(orbitTangent(startAngle, phase.departureDirection ?? 1));
         const endTangent = outbound && adjacentHyperbola
             ? lunarHyperbolaTangent(mission, adjacentHyperbola, 0)
-            : normalized(orbitTangent(endAngle, phase.arrivalDirection ?? 1));
+            : outbound && phase.arrivalTangent === 'radial-in'
+                ? normalized({
+                    x: moonPositionAtProgress(mission, moonProgress).x - moonPoint.x,
+                    y: moonPositionAtProgress(mission, moonProgress).y - moonPoint.y
+                })
+                : normalized(orbitTangent(endAngle, phase.arrivalDirection ?? 1));
         const chord = Math.hypot(end.x - start.x, end.y - start.y);
         const handle = chord * (phase.handleScale ?? 0.32);
         const control1 = {
@@ -368,7 +373,9 @@
             point = pointAround(moonPositionAtProgress(mission, shownProgress), baseRadius + flybyBulge, angle);
         } else if (phase.type === 'moon-descent') {
             const startRadius = phase.radius ?? EARTH_MOON_SCENE.moonOrbitRadius;
-            const eased = localProgress * localProgress * (3 - 2 * localProgress);
+            const eased = phase.radialDescent
+                ? localProgress
+                : localProgress * localProgress * (3 - 2 * localProgress);
             const radius = startRadius + (EARTH_MOON_SCENE.moonRadius - startRadius) * eased;
             point = pointAround(moonPositionAtProgress(mission, shownProgress), radius, angle);
         } else if (phase.type === 'moon-ascent') {
