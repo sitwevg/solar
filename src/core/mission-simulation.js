@@ -144,20 +144,45 @@
         const duration = Math.max(1e-9, phase.endProgress - phase.startProgress);
         let startSlope = end - start;
         let endSlope = end - start;
-        if (phase.type === 'moon-descent') {
+        let usesHermite = false;
+        if (phase.type === 'moon-orbit') {
+            const next = segment.phases[phaseIndex + 1];
+            if (next?.type === 'moon-descent') {
+                const nextDuration = Math.max(1e-9, next.endProgress - next.startProgress);
+                const nextDelta = (next.turns ?? 0) * Math.PI * 2;
+                let nextStartSlope = (phase.turns ?? 0) * Math.PI * 2 / duration * nextDuration;
+                if (nextDelta !== 0 && Math.sign(nextStartSlope) === Math.sign(nextDelta)) {
+                    nextStartSlope = Math.sign(nextDelta) * Math.min(
+                        Math.abs(nextStartSlope),
+                        Math.abs(nextDelta) * 3
+                    );
+                }
+                endSlope = nextStartSlope / nextDuration * duration;
+                usesHermite = true;
+            }
+        } else if (phase.type === 'moon-descent') {
             const previous = segment.phases[phaseIndex - 1];
             const previousDuration = Math.max(1e-9, previous.endProgress - previous.startProgress);
             startSlope = previous.type === 'translunar'
                 ? end - start
                 : (previous.turns ?? 0) * Math.PI * 2 / previousDuration * duration;
+            const angleDelta = end - start;
+            if (angleDelta !== 0 && Math.sign(startSlope) === Math.sign(angleDelta)) {
+                startSlope = Math.sign(angleDelta) * Math.min(
+                    Math.abs(startSlope),
+                    Math.abs(angleDelta) * 3
+                );
+            }
             endSlope = 0;
+            usesHermite = true;
         } else if (phase.type === 'moon-ascent') {
             const next = segment.phases[phaseIndex + 1];
             const nextDuration = Math.max(1e-9, next.endProgress - next.startProgress);
             startSlope = 0;
             endSlope = (next.turns ?? 0) * Math.PI * 2 / nextDuration * duration;
+            usesHermite = true;
         }
-        if (!['moon-descent', 'moon-ascent'].includes(phase.type)) {
+        if (!usesHermite) {
             return start + (end - start) * localProgress;
         }
         const t = localProgress;
@@ -175,18 +200,7 @@
             clamp(progress, 0, 1),
             clamp(segment.moonMotionEndProgress ?? 1, 0, 1)
         );
-        const date = missionDateAtProgress(mission, motionProgress);
-        const pausedSurfaceTime = segment.phases
-            .filter(phase => phase.type === 'moon-surface' && motionProgress > phase.startProgress)
-            .reduce((total, phase) => {
-                const surfaceStart = missionDateAtProgress(mission, phase.startProgress).getTime();
-                const surfaceEnd = missionDateAtProgress(
-                    mission,
-                    Math.min(motionProgress, phase.endProgress)
-                ).getTime();
-                return total + Math.max(0, surfaceEnd - surfaceStart);
-            }, 0);
-        const visualDateMs = date.getTime() - pausedSurfaceTime;
+        const visualDateMs = missionDateAtProgress(mission, motionProgress).getTime();
         let longitudeDeg;
         let latitudeDeg = 0;
         let distanceScale = 1;
@@ -464,6 +478,41 @@
         ));
     }
 
+    function traveledPathSegments(mission, progress, maximumSampleCount = 320) {
+        const segment = earthMoonSegment(mission);
+        if (!segment) {
+            const path = traveledPath(mission, progress, maximumSampleCount);
+            return path.length ? [path] : [];
+        }
+        const shownProgress = clamp(progress, 0, 1);
+        const paths = [];
+        let activePath = null;
+        segment.phases.forEach(phase => {
+            if (phase.startProgress >= shownProgress) return;
+            if (phase.type === 'moon-surface') {
+                activePath = null;
+                return;
+            }
+            const endProgress = Math.min(phase.endProgress, shownProgress);
+            if (endProgress <= phase.startProgress) return;
+            if (!activePath) {
+                activePath = [positionAtProgress(mission, phase.startProgress)];
+                paths.push(activePath);
+            }
+            const sampleCount = Math.max(
+                1,
+                Math.ceil(maximumSampleCount * (endProgress - phase.startProgress))
+            );
+            for (let index = 1; index <= sampleCount; index += 1) {
+                const localProgress = index / sampleCount;
+                const sampleProgress = phase.startProgress
+                    + (endProgress - phase.startProgress) * localProgress;
+                activePath.push(positionAtProgress(mission, sampleProgress));
+            }
+        });
+        return paths.filter(path => path.length > 1);
+    }
+
     function currentEvent(mission, date) {
         if (!date) return null;
         return mission.events
@@ -503,7 +552,8 @@
 
     return Object.freeze({
         EARTH_RADIUS_KM, EARTH_MOON_SCENE, ACCURACY_LABELS, orbitalSegment, earthMoonSegment, primarySegment,
-        presentationDurationSeconds, missionDateAtProgress, positionAtProgress, orbitPath, traveledPath, currentEvent, currentEventAtProgress,
+        presentationDurationSeconds, missionDateAtProgress, positionAtProgress, orbitPath, traveledPath, traveledPathSegments,
+        currentEvent, currentEventAtProgress,
         moonPositionAtProgress, presentationProgressAtElapsed, elapsedFractionAtPresentationProgress,
         formatUtcDateTime, outcomeLabel
     });

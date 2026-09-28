@@ -85,7 +85,7 @@ test('локальные витки значительно меньше расс
     });
 });
 
-test('Луна следует эфемериде Astronomy Engine, но визуально ждёт аппарат на поверхности', () => {
+test('Луна следует эфемериде Astronomy Engine и движется во время стоянки Apollo 11', () => {
     const luna2 = missions.find(mission => mission.id === 'luna-2');
     const luna2Start = simulation.moonPositionAtProgress(luna2, 0);
     const luna2Expected = Astronomy.EclipticGeoMoon(simulation.missionDateAtProgress(luna2, 0));
@@ -99,15 +99,15 @@ test('Луна следует эфемериде Astronomy Engine, но визу
     assert.ok(Math.abs(landing.latitudeDeg - expected.lat) < 1e-9);
     assert.ok(Math.abs(landing.distanceScale
         - expected.dist * Astronomy.KM_PER_AU / 384400) < 1e-9);
-    assert.deepEqual(
+    assert.notDeepEqual(
         simulation.moonPositionAtProgress(apollo11, 0.58),
         simulation.moonPositionAtProgress(apollo11, 0.68),
-        'во время работы Eagle на поверхности визуальная Луна не уходит от аппарата'
+        'во время работы Eagle поверхность вместе с Луной продолжает движение'
     );
     assert.notDeepEqual(
         simulation.moonPositionAtProgress(apollo11, 0.68),
         simulation.moonPositionAtProgress(apollo11, 0.77),
-        'после взлёта движение Луны продолжается без скачка'
+        'после взлёта движение Луны продолжается'
     );
 
     const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');
@@ -245,6 +245,44 @@ test('геометрия лунных миссий соответствует и
         relativeAngleAt('luna-17-lunokhod-1', 0.57),
         earthFacingAngleAt('luna-17-lunokhod-1', 0.57)
     ) < 90, 'Море Дождей находится на видимой стороне');
+
+    const luna17 = mission('luna-17-lunokhod-1');
+    const descentAngles = [];
+    for (let step = 0; step <= 20; step += 1) {
+        const progress = 0.52 + 0.05 * step / 20;
+        const point = simulation.positionAtProgress(luna17, progress);
+        const moon = simulation.moonPositionAtProgress(luna17, progress);
+        let angle = Math.atan2(point.y - moon.y, point.x - moon.x);
+        if (descentAngles.length) {
+            while (angle < descentAngles.at(-1) - Math.PI) angle += Math.PI * 2;
+            while (angle > descentAngles.at(-1) + Math.PI) angle -= Math.PI * 2;
+        }
+        descentAngles.push(angle);
+    }
+    descentAngles.slice(1).forEach((angle, index) => {
+        assert.ok(angle >= descentAngles[index] - 1e-9, 'Луна-17 не должна разворачиваться на спуске');
+    });
+});
+
+test('след Apollo 11 прерывается на поверхности и возобновляется с движущейся Луны', () => {
+    const mission = missions.find(item => item.id === 'apollo-11');
+    const atLanding = simulation.traveledPathSegments(mission, 0.58, 420);
+    const onSurface = simulation.traveledPathSegments(mission, 0.64, 420);
+    const afterAscent = simulation.traveledPathSegments(mission, 0.7, 420);
+
+    assert.deepEqual(onSurface, atLanding, 'синяя линия не должна рисоваться во время стоянки');
+    assert.equal(afterAscent.length, 2, 'после взлёта должен начаться новый участок следа');
+    const landingPoint = atLanding[0].at(-1);
+    const ascentPoint = afterAscent[1][0];
+    assert.ok(
+        Math.hypot(ascentPoint.x - landingPoint.x, ascentPoint.y - landingPoint.y) > 0.1,
+        'разрыв должен отражать перемещение Луны между посадкой и взлётом'
+    );
+    const moonAtAscent = simulation.moonPositionAtProgress(mission, 0.68);
+    assert.ok(Math.abs(
+        Math.hypot(ascentPoint.x - moonAtAscent.x, ascentPoint.y - moonAtAscent.y)
+        - simulation.EARTH_MOON_SCENE.moonRadius
+    ) < 1e-9, 'новый след начинается на поверхности в новом положении Луны');
 });
 
 test('темп Apollo 13 выравнивает видимую скорость орбиты и перелёта', () => {

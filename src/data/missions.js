@@ -360,8 +360,8 @@
                 { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 0, turns: 0.434361 },
                 { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 156.37, turns: 0 },
                 { type: 'moon-ascent', startProgress: 0.68, endProgress: 0.72, angleDeg: 156.37, turns: 0.5 },
-                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 336.37, turns: 1.065639 },
-                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 720, earthAngleDeg: -25 },
+                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 336.37, turns: 1.1461355 },
+                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 748.97878, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [
                 { progress: 0, date: '1969-07-16T13:32:00Z' },
