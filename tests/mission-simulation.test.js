@@ -83,21 +83,57 @@ test('локальные витки значительно меньше расс
     });
 });
 
-test('Луна движется по реальной средней угловой скорости и переносит с собой маршрут', () => {
+test('Луна движется по средней угловой скорости, но визуально ждёт аппарат на поверхности', () => {
     const apollo11 = missions.find(mission => mission.id === 'apollo-11');
     const start = simulation.moonPositionAtProgress(apollo11, 0);
-    const finish = simulation.moonPositionAtProgress(apollo11, 1);
+    const landing = simulation.moonPositionAtProgress(apollo11, 0.58);
     const sweptAngle = Math.atan2(
-        start.x * finish.y - start.y * finish.x,
-        start.x * finish.x + start.y * finish.y
+        start.x * landing.y - start.y * landing.x,
+        start.x * landing.x + start.y * landing.y
     ) * 180 / Math.PI;
-    assert.ok(sweptAngle > 105 && sweptAngle < 110, `угол Apollo 11: ${sweptAngle}`);
+    const elapsedDays = (
+        simulation.missionDateAtProgress(apollo11, 0.58)
+        - simulation.missionDateAtProgress(apollo11, 0)
+    ) / 86400000;
+    assert.ok(Math.abs(sweptAngle - elapsedDays * 13.17639648) < 0.01, `угол Apollo 11: ${sweptAngle}`);
+    assert.deepEqual(
+        simulation.moonPositionAtProgress(apollo11, 0.58),
+        simulation.moonPositionAtProgress(apollo11, 0.68),
+        'во время работы Eagle на поверхности визуальная Луна не уходит от аппарата'
+    );
+    assert.notDeepEqual(
+        simulation.moonPositionAtProgress(apollo11, 0.68),
+        simulation.moonPositionAtProgress(apollo11, 0.77),
+        'после взлёта движение Луны продолжается без скачка'
+    );
 
     const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');
     assert.deepEqual(
         simulation.moonPositionAtProgress(lunokhod, 0.57),
         simulation.moonPositionAtProgress(lunokhod, 1),
         'после посадки длинная поверхностная история не рисует лишние круги Луны'
+    );
+});
+
+test('американские лунные миссии стартуют с условных десяти часов', () => {
+    ['apollo-11', 'apollo-13'].forEach(id => {
+        const mission = missions.find(item => item.id === id);
+        const phases = simulation.earthMoonSegment(mission).phases;
+        assert.equal(phases[0].angleDeg, -150, `${id}: мыс Кеннеди`);
+        assert.equal(phases[1].angleDeg, -121.2, `${id}: продолжение подъёма`);
+        assert.equal(phases[2].earthAngleDeg, 58.8, `${id}: точка ухода к Луне`);
+    });
+    const soviet = simulation.earthMoonSegment(missions.find(item => item.id === 'luna-17-lunokhod-1'));
+    assert.equal(soviet.phases[0].angleDeg, -55);
+});
+
+test('длительность показа определяется объёмом рассказа, а не календарной длиной миссии', () => {
+    const apollo11 = missions.find(mission => mission.id === 'apollo-11');
+    const apollo13 = missions.find(mission => mission.id === 'apollo-13');
+    assert.ok(apollo11.simulationStory.join(' ').length > apollo13.simulationStory.join(' ').length);
+    assert.ok(
+        simulation.presentationDurationSeconds(apollo11)
+        > simulation.presentationDurationSeconds(apollo13)
     );
 });
 

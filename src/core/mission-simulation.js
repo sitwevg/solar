@@ -44,10 +44,13 @@
     function presentationDurationSeconds(mission) {
         const segment = primarySegment(mission);
         if (!segment) return 0;
-        const days = Math.max(1 / 24, (Date.parse(segment.endDate) - Date.parse(segment.startDate)) / 86400000);
-        const storyCharacters = (mission.simulationStory || mission.story || []).join(' ').length;
-        const readingSeconds = storyCharacters / 15;
-        return Math.round(clamp(Math.max(82 + Math.log10(days + 1) * 12, readingSeconds), 82, 150));
+        const storyCharacters = [
+            mission.name,
+            ...(mission.simulationStory || mission.story || []),
+            mission.result || ''
+        ].join(' ').length;
+        const readingSeconds = storyCharacters / 14;
+        return Math.round(clamp(readingSeconds, 90, 180));
     }
 
     function missionDateAtProgress(mission, progress) {
@@ -170,7 +173,18 @@
             clamp(segment.moonMotionEndProgress ?? 1, 0, 1)
         );
         const date = missionDateAtProgress(mission, motionProgress);
-        const daysFromJ2000 = (date.getTime() - J2000_UTC_MS) / 86400000;
+        const pausedSurfaceTime = segment.phases
+            .filter(phase => phase.type === 'moon-surface' && motionProgress > phase.startProgress)
+            .reduce((total, phase) => {
+                const surfaceStart = missionDateAtProgress(mission, phase.startProgress).getTime();
+                const surfaceEnd = missionDateAtProgress(
+                    mission,
+                    Math.min(motionProgress, phase.endProgress)
+                ).getTime();
+                return total + Math.max(0, surfaceEnd - surfaceStart);
+            }, 0);
+        const visualDateMs = date.getTime() - pausedSurfaceTime;
+        const daysFromJ2000 = (visualDateMs - J2000_UTC_MS) / 86400000;
         const angle = (
             LUNAR_MEAN_LONGITUDE_J2000_DEG
             + LUNAR_MEAN_MOTION_DEG_PER_DAY * daysFromJ2000

@@ -10,10 +10,10 @@
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
   <script src="src/core/mission-schema.js?v=0.4.0"></script>
-  <script src="src/data/missions.js?v=0.4.1"></script>
+  <script src="src/data/missions.js?v=0.4.2"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.4.1"></script>
+  <script src="src/core/mission-simulation.js?v=0.4.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
@@ -2172,7 +2172,9 @@
       ctx.fillText('Луна', moonScreen.x, moonLabelY);
 
       if (progress < .16) {
-        const launchAngle = -55 * Math.PI / 180;
+        const segment = missionSimulationApi.earthMoonSegment(activeMission);
+        const launchPhase = segment.phases.find(phase => phase.type === 'earth-launch');
+        const launchAngle = (launchPhase?.angleDeg ?? -55) * Math.PI / 180;
         const launchSite = {
           x: earthX + Math.cos(launchAngle) * earthRadius,
           y: centerY + Math.sin(launchAngle) * earthRadius
@@ -2182,8 +2184,13 @@
         if (!mobile) {
           ctx.font = '9px sans-serif';
           ctx.fillStyle = 'rgba(178,205,255,.72)';
-          ctx.textAlign = 'left';
-          ctx.fillText(activeMission.countries.includes('США') ? 'Мыс Кеннеди' : 'Байконур', launchSite.x + 7, launchSite.y + 12);
+          const labelOnRight = launchSite.x >= earthX;
+          ctx.textAlign = labelOnRight ? 'left' : 'right';
+          ctx.fillText(
+            activeMission.countries.includes('США') ? 'Мыс Кеннеди' : 'Байконур',
+            launchSite.x + (labelOnRight ? 7 : -7),
+            launchSite.y + 12
+          );
         }
       }
 
@@ -2360,7 +2367,7 @@
       const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
       simTime = date;
       document.getElementById('mission-simulation-date').textContent = missionSimulationApi.formatUtcDateTime(date);
-      updateMissionStory(progress);
+      updateMissionStory(elapsedFraction);
       drawMissionSimulation(progress, timestamp);
 
       if (elapsedFraction >= 1) {

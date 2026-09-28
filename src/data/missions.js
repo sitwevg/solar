@@ -337,9 +337,9 @@
                 'На поверхность спускался только Eagle; Columbia оставалась на лунной орбите.'
             ], 'spacecraft/apollo-11.png', 'Реалистичная учебная иллюстрация корабля Apollo 11 с модулями Columbia и Eagle'),
             trajectory: earthMoonTrajectory('1969-07-16T13:32:00Z', '1969-07-24T16:50:35Z', [
-                { type: 'earth-launch', startProgress: 0, endProgress: 0.02, angleDeg: -60, turns: 0.08 },
-                { type: 'earth-orbit', startProgress: 0.02, endProgress: 0.1, angleDeg: -31.2, turns: 1.5 },
-                { type: 'translunar', startProgress: 0.1, endProgress: 0.42, earthAngleDeg: 148.8, moonAngleDeg: 0 },
+                { type: 'earth-launch', startProgress: 0, endProgress: 0.02, angleDeg: -150, turns: 0.08 },
+                { type: 'earth-orbit', startProgress: 0.02, endProgress: 0.1, angleDeg: -121.2, turns: 1.5 },
+                { type: 'translunar', startProgress: 0.1, endProgress: 0.42, earthAngleDeg: 58.8, moonAngleDeg: 0 },
                 { type: 'moon-orbit', startProgress: 0.42, endProgress: 0.54, angleDeg: 0, turns: 2 },
                 { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 0, turns: 0.5 },
                 { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 180, turns: 0 },
@@ -392,9 +392,9 @@
                 'Посадочный двигатель Aquarius использовали для коррекции пути обратно к Земле.'
             ], 'spacecraft/apollo-13.png', 'Реалистичная учебная иллюстрация аварийного комплекса Apollo 13 Odyssey и Aquarius'),
             trajectory: earthMoonTrajectory('1970-04-11T19:13:00Z', '1970-04-17T18:07:41Z', [
-                { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -60, turns: 0.08 },
-                { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.1, angleDeg: -31.2, turns: 1.5 },
-                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 148.8, moonAngleDeg: 180 },
+                { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -150, turns: 0.08 },
+                { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.1, angleDeg: -121.2, turns: 1.5 },
+                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 58.8, moonAngleDeg: 180 },
                 { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 180, turns: 0.55 },
                 { type: 'transearth', startProgress: 0.68, endProgress: 0.97, moonAngleDeg: 378, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
