@@ -27,6 +27,7 @@
   position:relative; flex:1; min-height:0; overflow:hidden;
   mask-image:linear-gradient(transparent 0,#000 10%,#000 87%,transparent 100%);
 }
+#mission-story-panel.complete #mission-story-viewport { display:none; }
 #mission-story-scroll {
   position:absolute; top:0; right:0; left:0; padding:0 18px 28px; will-change:transform;
   color:rgba(232,238,255,.77); font-size:13px; line-height:1.7;
@@ -74,15 +75,14 @@
 #mission-vehicle-facts li + li { margin-top:6px; }
 #mission-vehicle-close { position:absolute; top:10px; right:10px; width:30px; height:30px; padding:0; }
 #mission-complete {
-  position:absolute; z-index:5; inset:0; display:flex; align-items:center; justify-content:center; padding:20px;
-  background:rgba(0,4,16,.76); visibility:hidden; opacity:0; transition:opacity .22s;
+  display:none; flex:1; min-height:0; align-items:center; justify-content:center; padding:18px;
 }
-#mission-complete.open { visibility:visible; opacity:1; }
-#mission-complete-card { width:min(420px,100%); padding:26px; border:1px solid rgba(115,229,163,.25); border-radius:20px; background:#071128; text-align:center; box-shadow:0 25px 90px #000b; }
-#mission-complete-card h2 { font-size:25px; }
+#mission-complete.open { display:flex; }
+#mission-complete-card { width:100%; padding:18px; border:1px solid rgba(115,229,163,.25); border-radius:15px; background:rgba(25,76,54,.12); text-align:center; }
+#mission-complete-card h2 { font-size:23px; }
 #mission-complete-result { margin-top:8px; color:#71dfa0; font-size:15px; }
 #mission-complete-card p { margin-top:10px; color:rgba(230,237,255,.58); font-size:12px; line-height:1.55; }
-#mission-complete-confirm { width:100%; margin-top:20px; padding:12px; border:1px solid rgba(104,220,153,.36); border-radius:13px; background:rgba(61,190,116,.18); color:#dfffea; font-weight:600; cursor:pointer; }
+#mission-complete-confirm { width:100%; margin-top:18px; padding:11px; border:1px solid rgba(104,220,153,.36); border-radius:13px; background:rgba(61,190,116,.18); color:#dfffea; font-weight:600; cursor:pointer; }
 @media (max-width:540px) {
   #mission-simulation-header { grid-template-columns:auto 1fr; }
   #mission-accuracy { grid-column:1/-1; justify-self:center; }
