@@ -133,7 +133,8 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /id="mission-story-scroll"/);
     assert.match(html, /id="mission-progress" type="range" min="0" max="1000"/);
     assert.match(html, /missionProgress\.addEventListener\('input'/);
-    assert.match(html, /missionElapsedMs = Number\(event\.currentTarget\.value\) \/ 1000 \* missionPresentationMs/);
+    assert.match(html, /elapsedFractionAtPresentationProgress/);
+    assert.match(html, /presentationProgressAtElapsed/);
     assert.match(html, /setMissionSimulationPaused\(true\)/);
     assert.doesNotMatch(html, /function startMissionSimulation\(mission\) \{\s*closeMissionDetail\(\);\s*closeMissionCatalog\(\)/);
     assert.match(html, /Вернуться к списку миссий/);
@@ -147,7 +148,8 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
     assert.match(html, /id="mission-vehicle-image"/);
-    assert.match(html, /src\/data\/missions\.js\?v=0\.4\.0/);
+    assert.match(html, /src\/data\/missions\.js\?v=0\.4\.1/);
+    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.4\.1/);
     assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.3\.2/);
     assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);
     assert.match(html, /const MISSION_VEHICLE_ASSET_VERSION = '0\.4\.0'/);

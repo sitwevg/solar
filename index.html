@@ -10,10 +10,10 @@
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
   <script src="src/core/mission-schema.js?v=0.4.0"></script>
-  <script src="src/data/missions.js?v=0.4.0"></script>
+  <script src="src/data/missions.js?v=0.4.1"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.4.0"></script>
+  <script src="src/core/mission-simulation.js?v=0.4.1"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
@@ -2101,26 +2101,33 @@
       const mobile = width <= 540;
       const storyWidth = mobile ? 0 : Math.min(360, width * .34) + 32;
       const visualWidth = width - storyWidth;
-      const horizontalMargin = Math.max(mobile ? 42 : 72, visualWidth * .1);
-      const earthX = horizontalMargin;
-      const moonX = visualWidth - horizontalMargin;
-      const centerY = mobile ? height * .34 : height * .5;
-      const distance = Math.max(1, moonX - earthX);
+      const earthX = visualWidth * .5;
+      const centerY = mobile ? height * .31 : height * .5;
+      const distance = Math.max(1, Math.min(
+        visualWidth * (mobile ? .4 : .39),
+        height * (mobile ? .2 : .35)
+      ));
       const scene = missionSimulationApi.EARTH_MOON_SCENE;
       const earthRadius = distance * scene.earthRadius;
-      const moonRadius = Math.max(11, distance * scene.moonRadius);
+      const moonRadius = Math.max(8, distance * scene.moonRadius);
       const screenPoint = point => ({
         x: earthX + point.x * distance,
         y: centerY + point.y * distance
       });
+      const moonScene = missionSimulationApi.moonPositionAtProgress(activeMission, progress);
+      const moonScreen = screenPoint(moonScene);
 
       ctx.save();
       ctx.setLineDash([4, 8]);
       ctx.beginPath();
-      ctx.moveTo(earthX + earthRadius + 14, centerY);
-      ctx.lineTo(moonX - moonRadius - 14, centerY);
+      ctx.arc(earthX, centerY, distance, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(180,204,248,.08)';
       ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(earthX, centerY);
+      ctx.lineTo(moonScreen.x, moonScreen.y);
+      ctx.strokeStyle = 'rgba(180,204,248,.065)';
       ctx.stroke();
       ctx.restore();
 
@@ -2149,9 +2156,9 @@
       ctx.save();
       ctx.shadowBlur = 18;
       ctx.shadowColor = 'rgba(220,228,245,.5)';
-      if (!drawMissionBodyImage(ctx, getImg('moons/moon.png'), moonX, centerY, moonRadius)) {
+      if (!drawMissionBodyImage(ctx, getImg('moons/moon.png'), moonScreen.x, moonScreen.y, moonRadius)) {
         ctx.fillStyle = '#bfc4cf';
-        ctx.beginPath(); ctx.arc(moonX, centerY, moonRadius, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moonScreen.x, moonScreen.y, moonRadius, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
 
@@ -2159,7 +2166,10 @@
       ctx.font = `${mobile ? 11 : 14}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('Земля', earthX, centerY - earthRadius - 12);
-      ctx.fillText('Луна', moonX, centerY - moonRadius - 10);
+      const moonLabelY = moonScreen.y < centerY
+        ? moonScreen.y - moonRadius - 10
+        : moonScreen.y + moonRadius + 17;
+      ctx.fillText('Луна', moonScreen.x, moonLabelY);
 
       if (progress < .16) {
         const launchAngle = -55 * Math.PI / 180;
@@ -2343,7 +2353,8 @@
       if (missionLastFrame === null) missionLastFrame = timestamp;
       if (!missionSimulationPaused) missionElapsedMs += timestamp - missionLastFrame;
       missionLastFrame = timestamp;
-      const progress = Math.min(1, missionElapsedMs / missionPresentationMs);
+      const elapsedFraction = Math.min(1, missionElapsedMs / missionPresentationMs);
+      const progress = missionSimulationApi.presentationProgressAtElapsed(activeMission, elapsedFraction);
       missionProgress.value = String(Math.round(progress * 1000));
       missionProgress.setAttribute('aria-valuetext', `${Math.round(progress * 100)}%`);
       const date = missionSimulationApi.missionDateAtProgress(activeMission, progress);
@@ -2352,7 +2363,7 @@
       updateMissionStory(progress);
       drawMissionSimulation(progress, timestamp);
 
-      if (progress >= 1) {
+      if (elapsedFraction >= 1) {
         setMissionSimulationPaused(true);
         document.getElementById('mission-complete-result').textContent = missionSimulationApi.outcomeLabel(activeMission.status);
         document.getElementById('mission-complete').classList.add('open');
@@ -2489,7 +2500,11 @@
       missionLastFrame = null;
     });
     missionProgress.addEventListener('input', event => {
-      missionElapsedMs = Number(event.currentTarget.value) / 1000 * missionPresentationMs;
+      const requestedProgress = Number(event.currentTarget.value) / 1000;
+      missionElapsedMs = missionSimulationApi.elapsedFractionAtPresentationProgress(
+        activeMission,
+        requestedProgress
+      ) * missionPresentationMs;
       setMissionSimulationPaused(true);
       missionLastFrame = null;
       document.getElementById('mission-complete').classList.remove('open');

@@ -202,7 +202,8 @@
             && phase.endProgress <= phase.startProgress) {
             pushError(errors, `${path}.endProgress`, 'конец фазы должен быть позже начала');
         }
-        ['angleDeg', 'turns', 'radius', 'earthAngleDeg', 'moonAngleDeg', 'earthRadius', 'moonRadius', 'arcHeight']
+        ['angleDeg', 'turns', 'radius', 'earthAngleDeg', 'moonAngleDeg', 'earthRadius', 'moonRadius',
+            'handleScale', 'departureDirection', 'arrivalDirection']
             .forEach((field) => {
                 if (phase[field] !== undefined && !Number.isFinite(phase[field])) {
                     pushError(errors, `${path}.${field}`, 'ожидалось конечное число');
@@ -266,6 +267,12 @@
             if (segment.model === 'earth-moon-route') {
                 if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
                 if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
+                if (segment.moonMotionEndProgress !== undefined
+                    && (!Number.isFinite(segment.moonMotionEndProgress)
+                        || segment.moonMotionEndProgress < 0
+                        || segment.moonMotionEndProgress > 1)) {
+                    pushError(errors, `${segmentPath}.moonMotionEndProgress`, 'ожидалось число от 0 до 1');
+                }
                 if (!Array.isArray(segment.phases) || segment.phases.length === 0) {
                     pushError(errors, `${segmentPath}.phases`, 'ожидался непустой массив фаз');
                 } else {

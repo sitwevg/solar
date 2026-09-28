@@ -83,6 +83,71 @@ test('локальные витки значительно меньше расс
     });
 });
 
+test('Луна движется по реальной средней угловой скорости и переносит с собой маршрут', () => {
+    const apollo11 = missions.find(mission => mission.id === 'apollo-11');
+    const start = simulation.moonPositionAtProgress(apollo11, 0);
+    const finish = simulation.moonPositionAtProgress(apollo11, 1);
+    const sweptAngle = Math.atan2(
+        start.x * finish.y - start.y * finish.x,
+        start.x * finish.x + start.y * finish.y
+    ) * 180 / Math.PI;
+    assert.ok(sweptAngle > 105 && sweptAngle < 110, `угол Apollo 11: ${sweptAngle}`);
+
+    const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');
+    assert.deepEqual(
+        simulation.moonPositionAtProgress(lunokhod, 0.57),
+        simulation.moonPositionAtProgress(lunokhod, 1),
+        'после посадки длинная поверхностная история не рисует лишние круги Луны'
+    );
+});
+
+test('стыки лунных фаз не содержат прямоугольных поворотов', () => {
+    const turnAngle = (first, second) => Math.abs(Math.atan2(
+        first.x * second.y - first.y * second.x,
+        first.x * second.x + first.y * second.y
+    ) * 180 / Math.PI);
+    lunarIds.forEach(id => {
+        const mission = missions.find(item => item.id === id);
+        const phases = simulation.earthMoonSegment(mission).phases;
+        phases.slice(1).forEach(phase => {
+            const epsilon = 0.0002;
+            const before = simulation.positionAtProgress(mission, phase.startProgress - epsilon);
+            const join = simulation.positionAtProgress(mission, phase.startProgress);
+            const after = simulation.positionAtProgress(mission, phase.startProgress + epsilon);
+            const incoming = { x: join.x - before.x, y: join.y - before.y };
+            const outgoing = { x: after.x - join.x, y: after.y - join.y };
+            if (Math.hypot(outgoing.x, outgoing.y) < 1e-10) return;
+            const angle = turnAngle(incoming, outgoing);
+            assert.ok(angle < 25, `${id}/${phase.type}: поворот ${angle.toFixed(1)}°`);
+        });
+    });
+});
+
+test('темп Apollo 13 выравнивает видимую скорость орбиты и перелёта', () => {
+    const mission = missions.find(item => item.id === 'apollo-13');
+    const distancesByPhase = new Map();
+    for (let step = 1; step <= 200; step += 1) {
+        const previousProgress = simulation.presentationProgressAtElapsed(mission, (step - 1) / 200);
+        const progress = simulation.presentationProgressAtElapsed(mission, step / 200);
+        const previous = simulation.positionAtProgress(mission, previousProgress);
+        const current = simulation.positionAtProgress(mission, progress);
+        if (previous.phase === current.phase && previous.phase !== 'earth-launch') {
+            if (!distancesByPhase.has(current.phase)) distancesByPhase.set(current.phase, []);
+            distancesByPhase.get(current.phase).push(Math.hypot(current.x - previous.x, current.y - previous.y));
+        }
+    }
+    const means = [...distancesByPhase.values()].map(values => (
+        values.reduce((sum, value) => sum + value, 0) / values.length
+    ));
+    const minimum = Math.min(...means);
+    const maximum = Math.max(...means);
+    assert.ok(maximum / minimum < 1.01, `разброс средней скорости фаз: ${(maximum / minimum).toFixed(3)}`);
+    for (const progress of [0, 0.1, 0.5, 0.9, 1]) {
+        const elapsed = simulation.elapsedFractionAtPresentationProgress(mission, progress);
+        assert.ok(Math.abs(simulation.presentationProgressAtElapsed(mission, elapsed) - progress) < 1e-6);
+    }
+});
+
 test('лунная шкала времени синхронизирует ключевые фазы, не растягивая перелёт', () => {
     const apollo11 = missions.find(mission => mission.id === 'apollo-11');
     const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');

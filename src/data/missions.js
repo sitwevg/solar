@@ -39,12 +39,12 @@
             ]
         }]
     });
-    const earthMoonTrajectory = (startDate, endDate, phases, timeline) => ({
+    const earthMoonTrajectory = (startDate, endDate, phases, timeline, options = {}) => ({
         accuracy: 'schematic',
         frame: 'geocentric-ecliptic-j2000',
         segments: [{
             id: 'earth-moon-route', model: 'earth-moon-route', frame: 'geocentric-ecliptic-j2000',
-            startDate, endDate, phases, timeline
+            startDate, endDate, phases, timeline, ...options
         }]
     });
 
@@ -249,7 +249,7 @@
             ], 'spacecraft/luna-2.png', 'Реалистичная учебная иллюстрация автоматической станции Луна-2'),
             trajectory: earthMoonTrajectory('1959-09-12T06:39:42Z', '1959-09-14T23:02:23Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.07, angleDeg: -55, turns: 0.08 },
-                { type: 'translunar', startProgress: 0.07, endProgress: 1, earthAngleDeg: -26.2, moonAngleDeg: 180, moonRadius: 0.036, arcHeight: -0.13 }
+                { type: 'translunar', startProgress: 0.07, endProgress: 1, earthAngleDeg: -26.2, moonAngleDeg: 180, moonRadius: 0.045 }
             ], [
                 { progress: 0, date: '1959-09-12T06:39:42Z' },
                 { progress: 1, date: '1959-09-14T23:02:23Z' }
@@ -291,15 +291,15 @@
             ], 'spacecraft/luna-9.png', 'Реалистичная учебная иллюстрация посадочной станции Луна-9 с раскрытыми лепестками'),
             trajectory: earthMoonTrajectory('1966-01-31T11:41:37Z', '1966-02-06T22:55:00Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.06, angleDeg: -55, turns: 0.08 },
-                { type: 'translunar', startProgress: 0.06, endProgress: 0.49, earthAngleDeg: -26.2, moonAngleDeg: 180, arcHeight: -0.12 },
-                { type: 'moon-descent', startProgress: 0.49, endProgress: 0.55, angleDeg: 180, turns: 0.12 },
-                { type: 'moon-surface', startProgress: 0.55, endProgress: 1, angleDeg: 223.2, turns: 0 }
+                { type: 'translunar', startProgress: 0.06, endProgress: 0.49, earthAngleDeg: -26.2, moonAngleDeg: 180 },
+                { type: 'moon-descent', startProgress: 0.49, endProgress: 0.55, angleDeg: 180, turns: 0.25 },
+                { type: 'moon-surface', startProgress: 0.55, endProgress: 1, angleDeg: 270, turns: 0 }
             ], [
                 { progress: 0, date: '1966-01-31T11:41:37Z' },
                 { progress: 0.49, date: '1966-02-03T18:20:00Z' },
                 { progress: 0.55, date: '1966-02-03T18:45:30Z' },
                 { progress: 1, date: '1966-02-06T22:55:00Z' }
-            ]),
+            ], { moonMotionEndProgress: 0.55 }),
             targets: [target('earth', 'Земля', 'earth', 'origin'), target('moon', 'Луна', 'moon', 'landing')],
             events: [
                 event('launch', 'launch', '1966-01-31T11:41:37Z', 'Запуск к Луне', 0, 'Станция отправилась к Луне по прямой траектории без лунной орбиты.'),
@@ -339,13 +339,13 @@
             trajectory: earthMoonTrajectory('1969-07-16T13:32:00Z', '1969-07-24T16:50:35Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.02, angleDeg: -60, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.02, endProgress: 0.1, angleDeg: -31.2, turns: 1.5 },
-                { type: 'translunar', startProgress: 0.1, endProgress: 0.42, earthAngleDeg: 148.8, moonAngleDeg: 180, arcHeight: -0.13 },
-                { type: 'moon-orbit', startProgress: 0.42, endProgress: 0.54, angleDeg: 180, turns: 2 },
-                { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 180, turns: 0.12 },
-                { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 223.2, turns: 0 },
-                { type: 'moon-ascent', startProgress: 0.68, endProgress: 0.72, angleDeg: 223.2, turns: 0.08 },
-                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 252, turns: 1.2 },
-                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 324, earthAngleDeg: -25, arcHeight: 0.14 },
+                { type: 'translunar', startProgress: 0.1, endProgress: 0.42, earthAngleDeg: 148.8, moonAngleDeg: 0 },
+                { type: 'moon-orbit', startProgress: 0.42, endProgress: 0.54, angleDeg: 0, turns: 2 },
+                { type: 'moon-descent', startProgress: 0.54, endProgress: 0.58, angleDeg: 0, turns: 0.5 },
+                { type: 'moon-surface', startProgress: 0.58, endProgress: 0.68, angleDeg: 180, turns: 0 },
+                { type: 'moon-ascent', startProgress: 0.68, endProgress: 0.72, angleDeg: 180, turns: 0.5 },
+                { type: 'moon-orbit', startProgress: 0.72, endProgress: 0.77, angleDeg: 360, turns: 1.2 },
+                { type: 'transearth', startProgress: 0.77, endProgress: 0.97, moonAngleDeg: 432, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [
                 { progress: 0, date: '1969-07-16T13:32:00Z' },
@@ -394,9 +394,9 @@
             trajectory: earthMoonTrajectory('1970-04-11T19:13:00Z', '1970-04-17T18:07:41Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -60, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.1, angleDeg: -31.2, turns: 1.5 },
-                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 148.8, moonAngleDeg: 150, arcHeight: -0.12 },
-                { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 150, turns: 0.55 },
-                { type: 'transearth', startProgress: 0.68, endProgress: 0.97, moonAngleDeg: 348, earthAngleDeg: -25, arcHeight: 0.14 },
+                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 148.8, moonAngleDeg: 180 },
+                { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 180, turns: 0.55 },
+                { type: 'transearth', startProgress: 0.68, endProgress: 0.97, moonAngleDeg: 378, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [
                 { progress: 0, date: '1970-04-11T19:13:00Z' },
@@ -442,10 +442,10 @@
             trajectory: earthMoonTrajectory('1970-11-10T14:44:01Z', '1971-10-04T00:00:00Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -55, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.09, angleDeg: -26.2, turns: 1 },
-                { type: 'translunar', startProgress: 0.09, endProgress: 0.38, earthAngleDeg: -26.2, moonAngleDeg: 180, arcHeight: -0.12 },
-                { type: 'moon-orbit', startProgress: 0.38, endProgress: 0.52, angleDeg: 180, turns: 2.5 },
-                { type: 'moon-descent', startProgress: 0.52, endProgress: 0.57, angleDeg: 0, turns: 0.12 },
-                { type: 'moon-surface', startProgress: 0.57, endProgress: 1, angleDeg: 43.2, turns: 0 }
+                { type: 'translunar', startProgress: 0.09, endProgress: 0.38, earthAngleDeg: -26.2, moonAngleDeg: 0 },
+                { type: 'moon-orbit', startProgress: 0.38, endProgress: 0.52, angleDeg: 0, turns: 2.5 },
+                { type: 'moon-descent', startProgress: 0.52, endProgress: 0.57, angleDeg: -180, turns: 0.5 },
+                { type: 'moon-surface', startProgress: 0.57, endProgress: 1, angleDeg: 0, turns: 0 }
             ], [
                 { progress: 0, date: '1970-11-10T14:44:01Z' },
                 { progress: 0.09, date: '1970-11-10T16:30:00Z' },
@@ -453,7 +453,7 @@
                 { progress: 0.57, date: '1970-11-17T03:46:50Z' },
                 { progress: 0.62, date: '1970-11-17T06:28:00Z' },
                 { progress: 1, date: '1971-10-04T00:00:00Z' }
-            ]),
+            ], { moonMotionEndProgress: 0.57 }),
             targets: [target('earth', 'Земля', 'earth', 'origin'), target('moon', 'Луна', 'moon', 'landing')],
             events: [
                 event('launch', 'launch', '1970-11-10T14:44:01Z', 'Запуск «Луны-17»', 0, 'Proton-K вывела тяжёлую станцию с планетоходом.'),
