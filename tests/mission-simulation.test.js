@@ -184,6 +184,26 @@ test('темп Apollo 13 выравнивает видимую скорость 
     }
 });
 
+test('Apollo 13 входит в широкий свободный облёт без резкого поворота у Луны', () => {
+    const mission = missions.find(item => item.id === 'apollo-13');
+    const segment = simulation.earthMoonSegment(mission);
+    const flyby = segment.phases.find(phase => phase.type === 'moon-flyby');
+    assert.ok(flyby.radiusBulge >= 0.07, 'свободный облёт должен быть шире локальной орбиты');
+
+    const direction = (fromProgress, toProgress) => {
+        const from = simulation.positionAtProgress(mission, fromProgress);
+        const to = simulation.positionAtProgress(mission, toProgress);
+        return { x: to.x - from.x, y: to.y - from.y };
+    };
+    const incoming = direction(0.60, 0.62);
+    const flybyEntry = direction(0.62, 0.64);
+    const turn = Math.abs(Math.atan2(
+        incoming.x * flybyEntry.y - incoming.y * flybyEntry.x,
+        incoming.x * flybyEntry.x + incoming.y * flybyEntry.y
+    ) * 180 / Math.PI);
+    assert.ok(turn < 20, `поворот при входе в облёт: ${turn.toFixed(1)}°`);
+});
+
 test('лунная шкала времени синхронизирует ключевые фазы, не растягивая перелёт', () => {
     const apollo11 = missions.find(mission => mission.id === 'apollo-11');
     const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');

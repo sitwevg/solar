@@ -395,7 +395,7 @@
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -150, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.1, angleDeg: -121.2, turns: 1.5 },
                 { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 58.8, moonAngleDeg: 180 },
-                { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 180, turns: 0.55 },
+                { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 180, turns: 0.55, radiusBulge: 0.08 },
                 { type: 'transearth', startProgress: 0.68, endProgress: 0.97, moonAngleDeg: 378, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [

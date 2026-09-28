@@ -148,8 +148,8 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
     assert.match(html, /id="mission-vehicle-image"/);
-    assert.match(html, /src\/data\/missions\.js\?v=0\.4\.2/);
-    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.4\.2/);
+    assert.match(html, /src\/data\/missions\.js\?v=0\.4\.3/);
+    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.4\.3/);
     assert.match(html, /updateMissionStory\(elapsedFraction\)/);
     assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.3\.2/);
     assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);

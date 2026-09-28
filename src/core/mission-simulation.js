@@ -290,7 +290,11 @@
         } else if (phase.type === 'translunar' || phase.type === 'transearth') {
             point = transferPoint(mission, phase, localProgress);
         } else if (phase.type === 'moon-orbit' || phase.type === 'moon-flyby') {
-            point = pointAround(moonPositionAtProgress(mission, shownProgress), phase.radius ?? EARTH_MOON_SCENE.moonOrbitRadius, angle);
+            const baseRadius = phase.radius ?? EARTH_MOON_SCENE.moonOrbitRadius;
+            const flybyBulge = phase.type === 'moon-flyby'
+                ? (phase.radiusBulge ?? 0) * Math.sin(Math.PI * localProgress) ** 2
+                : 0;
+            point = pointAround(moonPositionAtProgress(mission, shownProgress), baseRadius + flybyBulge, angle);
         } else if (phase.type === 'moon-descent') {
             const startRadius = phase.radius ?? EARTH_MOON_SCENE.moonOrbitRadius;
             const eased = localProgress * localProgress * (3 - 2 * localProgress);
