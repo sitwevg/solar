@@ -81,8 +81,7 @@
 #mission-complete-card { width:100%; padding:18px; border:1px solid rgba(115,229,163,.25); border-radius:15px; background:rgba(25,76,54,.12); text-align:center; }
 #mission-complete-card h2 { font-size:23px; }
 #mission-complete-result { margin-top:8px; color:#71dfa0; font-size:15px; }
-#mission-complete-card p { margin-top:10px; color:rgba(230,237,255,.58); font-size:12px; line-height:1.55; }
-#mission-complete-confirm { width:100%; margin-top:18px; padding:11px; border:1px solid rgba(104,220,153,.36); border-radius:13px; background:rgba(61,190,116,.18); color:#dfffea; font-weight:600; cursor:pointer; }
+#mission-complete-confirm { width:100%; margin-top:12px; padding:11px; border:1px solid rgba(104,220,153,.36); border-radius:13px; background:rgba(61,190,116,.18); color:#dfffea; font-weight:600; cursor:pointer; }
 @media (max-width:540px) {
   #mission-simulation-header { grid-template-columns:auto 1fr; }
   #mission-accuracy { grid-column:1/-1; justify-self:center; }
@@ -91,6 +90,9 @@
   .mission-sim-button { padding:9px 11px; font-size:11px; }
   #mission-vehicle-info { top:94px; right:10px; bottom:104px; width:calc(100% - 20px); }
   #mission-story-panel { top:auto; right:10px; bottom:90px; left:10px; width:auto; height:31vh; }
+  #mission-story-panel.complete #mission-story-heading { padding-left:24px; }
+  #mission-story-panel.complete #mission-complete { padding:10px 14px 14px; }
+  #mission-story-panel.complete #mission-complete-card { padding:14px; }
   #mission-story-scroll { font-size:12px; line-height:1.6; }
   #mission-story-scroll h2 { font-size:19px; }
 }

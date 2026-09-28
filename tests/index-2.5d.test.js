@@ -152,7 +152,7 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /src\/data\/missions\.js\?v=0\.4\.7/);
     assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.4\.7/);
     assert.match(html, /updateMissionStory\(elapsedFraction\)/);
-    assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.3\.3/);
+    assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.3\.4/);
     assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);
     assert.match(html, /const MISSION_VEHICLE_ASSET_VERSION = '0\.4\.0'/);
     assert.match(html, /panel\.dataset\.missionId = mission\.id/);
@@ -166,11 +166,13 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /closeMissionVehicle\(\{ restoreFocus: true \}\)/);
     assert.match(missionSimulationCss, /#mission-simulation\.vehicle-open #mission-simulation-controls[\s\S]*?visibility:hidden; opacity:0; pointer-events:none/);
     assert.match(html, /Полёт завершён/);
+    assert.doesNotMatch(html, /Траектория полностью построена/);
     assert.match(html, /id="mission-story-panel"[\s\S]*?id="mission-complete"/);
     assert.match(html, /missionSimulationComplete\) button\.textContent = '▶ Старт заново'/);
     assert.match(html, /if \(missionSimulationComplete\) \{[\s\S]*?restartMissionSimulation\(\)/);
     assert.match(missionSimulationCss, /#mission-story-panel\.complete #mission-story-viewport \{ display:none; \}/);
     assert.match(missionSimulationCss, /#mission-complete \{[\s\S]*?display:none; flex:1/);
     assert.doesNotMatch(missionSimulationCss, /#mission-complete \{[\s\S]*?inset:0/);
+    assert.match(missionSimulationCss, /#mission-story-panel\.complete #mission-story-heading \{ padding-left:24px; \}/);
     assert.match(html, /simTime = new Date\(\)/);
 });
