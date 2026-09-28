@@ -216,6 +216,20 @@
                 pushError(errors, `${path}.arrivalTangent`, 'ожидалось orbit или radial-in');
             }
         }
+        if (phase.departureTangent !== undefined) {
+            if (phase.type !== 'translunar') {
+                pushError(errors, `${path}.departureTangent`, 'касательная старта допустима только на пути к Луне');
+            } else if (!['orbit', 'radial-out'].includes(phase.departureTangent)) {
+                pushError(errors, `${path}.departureTangent`, 'ожидалось orbit или radial-out');
+            }
+        }
+        if (phase.radialAscent !== undefined) {
+            if (phase.type !== 'earth-launch') {
+                pushError(errors, `${path}.radialAscent`, 'радиальный подъём допустим только в фазе старта');
+            } else if (typeof phase.radialAscent !== 'boolean') {
+                pushError(errors, `${path}.radialAscent`, 'ожидалось логическое значение');
+            }
+        }
         if (phase.radialDescent !== undefined) {
             if (phase.type !== 'moon-descent') {
                 pushError(errors, `${path}.radialDescent`, 'радиальный спуск допустим только в фазе посадки');

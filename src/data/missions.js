@@ -248,10 +248,14 @@
                 'Научные приборы измеряли магнитное поле, радиацию и микрометеориты до самого столкновения.'
             ], 'spacecraft/luna-2.png', 'Реалистичная учебная иллюстрация автоматической станции Луна-2'),
             trajectory: earthMoonTrajectory('1959-09-12T06:39:42Z', '1959-09-14T23:02:23Z', [
-                { type: 'earth-launch', startProgress: 0, endProgress: 0.07, angleDeg: -55, turns: 0.08 },
+                {
+                    type: 'earth-launch', startProgress: 0, endProgress: 0.07,
+                    angleDeg: -55, turns: 0, radialAscent: true
+                },
                 {
                     type: 'translunar', startProgress: 0.07, endProgress: 1,
-                    earthAngleDeg: -26.2, moonAngleDeg: 180, moonRadius: 0.045,
+                    earthAngleDeg: -55, moonAngleDeg: 180, moonRadius: 0.045,
+                    departureTangent: 'radial-out',
                     arrivalTangent: 'radial-in'
                 }
             ], [

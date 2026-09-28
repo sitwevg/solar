@@ -86,6 +86,12 @@ test('локальные витки значительно меньше расс
 });
 
 test('Луна следует эфемериде Astronomy Engine, но визуально ждёт аппарат на поверхности', () => {
+    const luna2 = missions.find(mission => mission.id === 'luna-2');
+    const luna2Start = simulation.moonPositionAtProgress(luna2, 0);
+    const luna2Expected = Astronomy.EclipticGeoMoon(simulation.missionDateAtProgress(luna2, 0));
+    assert.ok(Math.abs(luna2Start.longitudeDeg - luna2Expected.lon) < 1e-9);
+    assert.ok(Math.abs(luna2Start.latitudeDeg - luna2Expected.lat) < 1e-9);
+
     const apollo11 = missions.find(mission => mission.id === 'apollo-11');
     const landing = simulation.moonPositionAtProgress(apollo11, 0.58);
     const expected = Astronomy.EclipticGeoMoon(simulation.missionDateAtProgress(apollo11, 0.58));
@@ -177,8 +183,27 @@ test('геометрия лунных миссий соответствует и
     };
 
     const luna2Transfer = phases('luna-2').find(phase => phase.type === 'translunar');
+    const luna2Launch = phases('luna-2').find(phase => phase.type === 'earth-launch');
+    assert.equal(luna2Launch.turns, 0);
+    assert.equal(luna2Launch.radialAscent, true);
+    assert.equal(luna2Transfer.departureTangent, 'radial-out');
     assert.equal(luna2Transfer.arrivalTangent, 'radial-in');
     assert.equal(luna2Transfer.moonRadius, simulation.EARTH_MOON_SCENE.moonRadius);
+    const luna2BeforeInjection = simulation.positionAtProgress(mission('luna-2'), 0.0698);
+    const luna2Injection = simulation.positionAtProgress(mission('luna-2'), 0.07);
+    const luna2AfterInjection = simulation.positionAtProgress(mission('luna-2'), 0.0702);
+    const luna2Incoming = {
+        x: luna2Injection.x - luna2BeforeInjection.x,
+        y: luna2Injection.y - luna2BeforeInjection.y
+    };
+    const luna2Outgoing = {
+        x: luna2AfterInjection.x - luna2Injection.x,
+        y: luna2AfterInjection.y - luna2Injection.y
+    };
+    assert.ok(Math.abs(Math.atan2(
+        luna2Incoming.x * luna2Outgoing.y - luna2Incoming.y * luna2Outgoing.x,
+        luna2Incoming.x * luna2Outgoing.x + luna2Incoming.y * luna2Outgoing.y
+    ) * 180 / Math.PI) < 5, 'прямой старт Луны-2 не должен поворачивать у Земли');
     assert.ok(angularDistance(
         relativeAngleAt('luna-2', 1),
         earthFacingAngleAt('luna-2', 1)

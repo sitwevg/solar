@@ -123,3 +123,15 @@ test('схема проверяет специальные параметры п
     assert.ok(result.errors.some(error => error.includes('arrivalTangent')));
     assert.ok(result.errors.some(error => error.includes('radialDescent')));
 });
+
+test('схема проверяет специальные параметры прямого старта от Земли', () => {
+    const broken = structuredClone(missions.find(mission => mission.id === 'luna-2'));
+    const phases = broken.trajectory.segments[0].phases;
+    phases.find(phase => phase.type === 'earth-launch').radialAscent = 'yes';
+    phases.find(phase => phase.type === 'translunar').departureTangent = 'sideways';
+
+    const result = schema.validateCatalog([broken]);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some(error => error.includes('radialAscent')));
+    assert.ok(result.errors.some(error => error.includes('departureTangent')));
+});

@@ -298,7 +298,9 @@
         const endAngle = outbound ? moonAngle : earthAngle;
         const startTangent = !outbound && adjacentHyperbola
             ? lunarHyperbolaTangent(mission, adjacentHyperbola, 1)
-            : normalized(orbitTangent(startAngle, phase.departureDirection ?? 1));
+            : outbound && phase.departureTangent === 'radial-out'
+                ? normalized(earthPoint)
+                : normalized(orbitTangent(startAngle, phase.departureDirection ?? 1));
         const endTangent = outbound && adjacentHyperbola
             ? lunarHyperbolaTangent(mission, adjacentHyperbola, 0)
             : outbound && phase.arrivalTangent === 'radial-in'
@@ -355,7 +357,9 @@
         let point;
         if (phase.type === 'earth-launch') {
             const targetRadius = phase.radius ?? EARTH_MOON_SCENE.earthOrbitRadius;
-            const eased = localProgress * localProgress * (3 - 2 * localProgress);
+            const eased = phase.radialAscent
+                ? localProgress
+                : localProgress * localProgress * (3 - 2 * localProgress);
             const radius = EARTH_MOON_SCENE.earthRadius
                 + (targetRadius - EARTH_MOON_SCENE.earthRadius) * eased;
             point = pointAround({ x: 0, y: 0 }, radius, angle);
