@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const Astronomy = require('../astronomy.js');
 const missions = require('../src/data/missions.js');
 const simulation = require('../src/core/mission-simulation.js');
 
@@ -83,19 +84,14 @@ test('локальные витки значительно меньше расс
     });
 });
 
-test('Луна движется по средней угловой скорости, но визуально ждёт аппарат на поверхности', () => {
+test('Луна следует эфемериде Astronomy Engine, но визуально ждёт аппарат на поверхности', () => {
     const apollo11 = missions.find(mission => mission.id === 'apollo-11');
-    const start = simulation.moonPositionAtProgress(apollo11, 0);
     const landing = simulation.moonPositionAtProgress(apollo11, 0.58);
-    const sweptAngle = Math.atan2(
-        start.x * landing.y - start.y * landing.x,
-        start.x * landing.x + start.y * landing.y
-    ) * 180 / Math.PI;
-    const elapsedDays = (
-        simulation.missionDateAtProgress(apollo11, 0.58)
-        - simulation.missionDateAtProgress(apollo11, 0)
-    ) / 86400000;
-    assert.ok(Math.abs(sweptAngle - elapsedDays * 13.17639648) < 0.01, `угол Apollo 11: ${sweptAngle}`);
+    const expected = Astronomy.EclipticGeoMoon(simulation.missionDateAtProgress(apollo11, 0.58));
+    assert.ok(Math.abs(landing.longitudeDeg - expected.lon) < 1e-9);
+    assert.ok(Math.abs(landing.latitudeDeg - expected.lat) < 1e-9);
+    assert.ok(Math.abs(landing.distanceScale
+        - expected.dist * Astronomy.KM_PER_AU / 384400) < 1e-9);
     assert.deepEqual(
         simulation.moonPositionAtProgress(apollo11, 0.58),
         simulation.moonPositionAtProgress(apollo11, 0.68),
@@ -184,24 +180,41 @@ test('темп Apollo 13 выравнивает видимую скорость 
     }
 });
 
-test('Apollo 13 входит в широкий свободный облёт без резкого поворота у Луны', () => {
+test('Apollo 13 проходит открытую гиперболу NASA без лунной орбиты и резких стыков', () => {
     const mission = missions.find(item => item.id === 'apollo-13');
     const segment = simulation.earthMoonSegment(mission);
     const flyby = segment.phases.find(phase => phase.type === 'moon-flyby');
-    assert.ok(flyby.radiusBulge >= 0.07, 'свободный облёт должен быть шире локальной орбиты');
+    assert.equal(flyby.turns, undefined, 'свободный облёт не должен имитировать лунную орбиту');
+    assert.equal(flyby.hyperbola.eccentricity, 1.4462);
+    assert.equal(flyby.hyperbola.periapsisKm, 1988.8);
+    assert.equal(flyby.hyperbola.inclinationDeg, 173.7);
+    assert.equal(flyby.hyperbola.epoch, '1970-04-15T00:33:57Z');
+
+    const perilune = simulation.positionAtProgress(mission, 0.65);
+    const moon = simulation.moonPositionAtProgress(mission, 0.65);
+    const scenePerilune = Math.hypot(perilune.x - moon.x, perilune.y - moon.y);
+    const expectedScenePerilune = simulation.EARTH_MOON_SCENE.moonRadius * 1988.8 / 1737.4;
+    assert.ok(Math.abs(scenePerilune - expectedScenePerilune) < 1e-9);
 
     const direction = (fromProgress, toProgress) => {
         const from = simulation.positionAtProgress(mission, fromProgress);
         const to = simulation.positionAtProgress(mission, toProgress);
         return { x: to.x - from.x, y: to.y - from.y };
     };
-    const incoming = direction(0.60, 0.62);
-    const flybyEntry = direction(0.62, 0.64);
-    const turn = Math.abs(Math.atan2(
-        incoming.x * flybyEntry.y - incoming.y * flybyEntry.x,
-        incoming.x * flybyEntry.x + incoming.y * flybyEntry.y
-    ) * 180 / Math.PI);
-    assert.ok(turn < 20, `поворот при входе в облёт: ${turn.toFixed(1)}°`);
+    [0.62, 0.68].forEach(progress => {
+        const epsilon = 0.0002;
+        const incoming = direction(progress - epsilon, progress);
+        const outgoing = direction(progress, progress + epsilon);
+        const turn = Math.abs(Math.atan2(
+            incoming.x * outgoing.y - incoming.y * outgoing.x,
+            incoming.x * outgoing.x + incoming.y * outgoing.y
+        ) * 180 / Math.PI);
+        assert.ok(turn < 5, `поворот в стыке ${progress}: ${turn.toFixed(1)}°`);
+    });
+
+    const pcPlus2 = mission.events.find(event => event.id === 'pc-plus-2');
+    assert.equal(pcPlus2.date, '1970-04-15T02:40:38Z');
+    assert.ok(pcPlus2.simulationProgress > 0.65, 'коррекция PC+2 выполняется после перицентра');
 });
 
 test('лунная шкала времени синхронизирует ключевые фазы, не растягивая перелёт', () => {

@@ -209,6 +209,38 @@
                     pushError(errors, `${path}.${field}`, 'ожидалось конечное число');
                 }
             });
+        if (phase.hyperbola !== undefined) {
+            if (phase.type !== 'moon-flyby') {
+                pushError(errors, `${path}.hyperbola`, 'гипербола допустима только для облёта Луны');
+            } else if (!isPlainObject(phase.hyperbola)) {
+                pushError(errors, `${path}.hyperbola`, 'ожидались параметры гиперболы');
+            } else {
+                const hyperbola = phase.hyperbola;
+                ['eccentricity', 'periapsisKm', 'inclinationDeg', 'longitudeAscendingNodeDeg',
+                    'argumentPeriapsisDeg', 'trueAnomalyLimitDeg', 'direction', 'periapsisAngleOffsetDeg']
+                    .forEach((field) => {
+                        if (!Number.isFinite(hyperbola[field])) {
+                            pushError(errors, `${path}.hyperbola.${field}`, 'ожидалось конечное число');
+                        }
+                    });
+                if (Number.isFinite(hyperbola.eccentricity) && hyperbola.eccentricity <= 1) {
+                    pushError(errors, `${path}.hyperbola.eccentricity`, 'для открытой траектории значение должно быть больше 1');
+                }
+                if (Number.isFinite(hyperbola.periapsisKm) && hyperbola.periapsisKm <= 0) {
+                    pushError(errors, `${path}.hyperbola.periapsisKm`, 'ожидалось положительное расстояние');
+                }
+                if (Number.isFinite(hyperbola.inclinationDeg)
+                    && (hyperbola.inclinationDeg < 0 || hyperbola.inclinationDeg > 180)) {
+                    pushError(errors, `${path}.hyperbola.inclinationDeg`, 'ожидался угол от 0 до 180 градусов');
+                }
+                if (![1, -1].includes(hyperbola.direction)) {
+                    pushError(errors, `${path}.hyperbola.direction`, 'ожидалось направление 1 или -1');
+                }
+                if (!isIsoDate(hyperbola.epoch)) {
+                    pushError(errors, `${path}.hyperbola.epoch`, 'ожидалась дата ISO 8601');
+                }
+            }
+        }
     }
 
     function validateTrajectory(trajectory, path, errors) {

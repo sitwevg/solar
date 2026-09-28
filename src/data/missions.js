@@ -394,15 +394,30 @@
             trajectory: earthMoonTrajectory('1970-04-11T19:13:00Z', '1970-04-17T18:07:41Z', [
                 { type: 'earth-launch', startProgress: 0, endProgress: 0.025, angleDeg: -150, turns: 0.08 },
                 { type: 'earth-orbit', startProgress: 0.025, endProgress: 0.1, angleDeg: -121.2, turns: 1.5 },
-                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 58.8, moonAngleDeg: 180 },
-                { type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68, angleDeg: 180, turns: 0.55, radiusBulge: 0.08 },
-                { type: 'transearth', startProgress: 0.68, endProgress: 0.97, moonAngleDeg: 378, earthAngleDeg: -25 },
+                { type: 'translunar', startProgress: 0.1, endProgress: 0.62, earthAngleDeg: 58.8 },
+                {
+                    type: 'moon-flyby', startProgress: 0.62, endProgress: 0.68,
+                    hyperbola: {
+                        eccentricity: 1.4462,
+                        periapsisKm: 1988.8,
+                        inclinationDeg: 173.7,
+                        longitudeAscendingNodeDeg: -150.74,
+                        argumentPeriapsisDeg: 28.7,
+                        epoch: '1970-04-15T00:33:57Z',
+                        trueAnomalyLimitDeg: 95,
+                        direction: 1,
+                        periapsisAngleOffsetDeg: 0
+                    }
+                },
+                { type: 'transearth', startProgress: 0.68, endProgress: 0.97, earthAngleDeg: -25 },
                 { type: 'earth-entry', startProgress: 0.97, endProgress: 1, angleDeg: -25, turns: 0.14 }
             ], [
                 { progress: 0, date: '1970-04-11T19:13:00Z' },
                 { progress: 0.1, date: '1970-04-11T21:48:46Z' },
                 { progress: 0.34, date: '1970-04-14T03:07:53Z' },
-                { progress: 0.65, date: '1970-04-15T00:21:00Z' },
+                { progress: 0.62, date: '1970-04-14T22:15:00Z' },
+                { progress: 0.65, date: '1970-04-15T00:33:57Z' },
+                { progress: 0.68, date: '1970-04-15T03:14:50Z' },
                 { progress: 1, date: '1970-04-17T18:07:41Z' }
             ]),
             targets: [target('earth', 'Земля', 'earth', 'return'), target('moon', 'Луна', 'moon', 'flyby')],
@@ -410,10 +425,15 @@
                 event('launch', 'launch', '1970-04-11T19:13:00Z', 'Старт Apollo 13', 0, 'Saturn V вывела экипаж на низкую околоземную орбиту.'),
                 event('tli', 'departure-burn', '1970-04-11T21:48:46Z', 'Разгон к Луне', 0.1, 'После полутора витков корабль отправился по транслунной траектории.'),
                 event('accident', 'loss-of-contact', '1970-04-14T03:07:53Z', 'Взрыв кислородного бака', 0.34, 'Посадку отменили, а Aquarius начали готовить как спасательный корабль.'),
-                event('lunar-flyby', 'flyby', '1970-04-15T00:21:00Z', 'Облёт Луны без выхода на орбиту', 0.65, 'Лунная гравитация развернула корабль обратно к Земле.'),
+                event('lunar-flyby', 'flyby', '1970-04-15T00:33:57Z', 'Максимальное сближение с Луной', 0.65, 'Корабль прошёл перицентр открытой гиперболы и без торможения продолжил свободный облёт.'),
+                event('pc-plus-2', 'departure-burn', '1970-04-15T02:40:38Z', 'Импульс PC+2 после облёта', 0.674, 'Через два часа после перицентра двигатель Aquarius ускорил возвращение и перенёс приводнение в Тихий океан.'),
                 event('return', 'return', '1970-04-17T18:07:41Z', 'Безопасное приводнение', 1, 'Odyssey вошла в атмосферу и вернула весь экипаж.')
             ],
-            sources: [source('nasa-apollo-13', 'Apollo 13 Mission Details', 'NASA', 'https://www.nasa.gov/missions/apollo/apollo-13-mission-details/')]
+            sources: [
+                source('nasa-apollo-13', 'Apollo 13 Mission Details', 'NASA', 'https://www.nasa.gov/missions/apollo/apollo-13-mission-details/'),
+                source('nasa-apollo-13-flyby', 'Apollo 13 Moon View Using Real-Time Data', 'NASA Scientific Visualization Studio', 'https://svs.gsfc.nasa.gov/4791'),
+                source('nasa-apollo-13-history', 'Houston, We’ve Had a Problem', 'NASA History', 'https://www.nasa.gov/history/houston-weve-had-a-problem/')
+            ]
         }),
         mission({
             id: 'luna-17-lunokhod-1', name: 'Луна-17 / Луноход-1', launchDate: '1970-11-10', endDate: '1971-10-04',

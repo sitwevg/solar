@@ -1,12 +1,13 @@
 (function initMissionSimulation(root, factory) {
     'use strict';
 
-    const api = factory();
     const isNode = typeof process !== 'undefined' && process.versions
         && Boolean(process.versions.node) && typeof module === 'object' && module.exports;
+    const astronomy = isNode ? require('../../astronomy.js') : root.Astronomy;
+    const api = factory(astronomy);
     if (isNode) module.exports = api;
     else root.SolarMissionSimulation = api;
-}(typeof globalThis !== 'undefined' ? globalThis : this, function createMissionSimulation() {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMissionSimulation(Astronomy) {
     'use strict';
 
     const EARTH_RADIUS_KM = 6371;
@@ -16,6 +17,8 @@
         earthOrbitRadius: 0.24,
         moonOrbitRadius: 0.095
     });
+    const MOON_MEAN_RADIUS_KM = 1737.4;
+    const EARTH_MOON_MEAN_DISTANCE_KM = 384400;
     const J2000_UTC_MS = Date.parse('2000-01-01T12:00:00Z');
     const LUNAR_MEAN_LONGITUDE_J2000_DEG = 218.3164477;
     const LUNAR_MEAN_MOTION_DEG_PER_DAY = 13.17639648;
@@ -184,12 +187,31 @@
                 return total + Math.max(0, surfaceEnd - surfaceStart);
             }, 0);
         const visualDateMs = date.getTime() - pausedSurfaceTime;
-        const daysFromJ2000 = (visualDateMs - J2000_UTC_MS) / 86400000;
-        const angle = (
-            LUNAR_MEAN_LONGITUDE_J2000_DEG
-            + LUNAR_MEAN_MOTION_DEG_PER_DAY * daysFromJ2000
-        ) * Math.PI / 180;
-        return Object.freeze({ x: Math.cos(angle), y: Math.sin(angle), z: 0, angle });
+        let longitudeDeg;
+        let latitudeDeg = 0;
+        let distanceScale = 1;
+        if (Astronomy?.EclipticGeoMoon) {
+            const ecliptic = Astronomy.EclipticGeoMoon(new Date(visualDateMs));
+            longitudeDeg = ecliptic.lon;
+            latitudeDeg = ecliptic.lat;
+            const distanceKm = ecliptic.dist * (Astronomy.KM_PER_AU || 149597870.7);
+            distanceScale = distanceKm / EARTH_MOON_MEAN_DISTANCE_KM;
+        } else {
+            const daysFromJ2000 = (visualDateMs - J2000_UTC_MS) / 86400000;
+            longitudeDeg = LUNAR_MEAN_LONGITUDE_J2000_DEG
+                + LUNAR_MEAN_MOTION_DEG_PER_DAY * daysFromJ2000;
+        }
+        const angle = longitudeDeg * Math.PI / 180;
+        const latitude = latitudeDeg * Math.PI / 180;
+        return Object.freeze({
+            x: Math.cos(angle) * distanceScale,
+            y: Math.sin(angle) * distanceScale,
+            z: Math.sin(latitude) * distanceScale,
+            angle,
+            longitudeDeg,
+            latitudeDeg,
+            distanceScale
+        });
     }
 
     function lunarReferenceAngle(mission) {
@@ -218,7 +240,41 @@
         };
     }
 
+    function lunarHyperbolaPoint(mission, phase, localProgress) {
+        const hyperbola = phase.hyperbola;
+        if (!hyperbola) return null;
+        const shownLocal = clamp(localProgress, 0, 1);
+        const limit = (hyperbola.trueAnomalyLimitDeg ?? 95) * Math.PI / 180;
+        const direction = hyperbola.direction ?? 1;
+        const anomaly = direction * (-limit + 2 * limit * shownLocal);
+        const eccentricity = hyperbola.eccentricity;
+        const periapsisSceneRadius = EARTH_MOON_SCENE.moonRadius
+            * hyperbola.periapsisKm / MOON_MEAN_RADIUS_KM;
+        const semiLatusRectum = periapsisSceneRadius * (1 + eccentricity);
+        const radius = semiLatusRectum / (1 + eccentricity * Math.cos(anomaly));
+        const progress = phase.startProgress
+            + (phase.endProgress - phase.startProgress) * shownLocal;
+        const moon = moonPositionAtProgress(mission, progress);
+        const periapsisMoon = moonPositionAtProgress(
+            mission,
+            (phase.startProgress + phase.endProgress) / 2
+        );
+        const periapsisAngle = periapsisMoon.angle
+            + (hyperbola.periapsisAngleOffsetDeg ?? 0) * Math.PI / 180;
+        return pointAround(moon, radius, periapsisAngle + anomaly);
+    }
+
+    function lunarHyperbolaTangent(mission, phase, localProgress) {
+        const epsilon = 1e-4;
+        const lower = clamp(localProgress - epsilon, 0, 1);
+        const upper = clamp(localProgress + epsilon, 0, 1);
+        const start = lunarHyperbolaPoint(mission, phase, lower);
+        const end = lunarHyperbolaPoint(mission, phase, upper);
+        return normalized({ x: end.x - start.x, y: end.y - start.y });
+    }
+
     function transferPoint(mission, phase, localProgress) {
+        const segment = earthMoonSegment(mission);
         const outbound = phase.type === 'translunar';
         const earthAngle = (phase.earthAngleDeg ?? 0) * Math.PI / 180;
         const moonAngle = lunarReferenceAngle(mission) + (phase.moonAngleDeg ?? 180) * Math.PI / 180;
@@ -226,13 +282,26 @@
         const moonRadius = phase.moonRadius ?? EARTH_MOON_SCENE.moonOrbitRadius;
         const earthPoint = pointAround({ x: 0, y: 0 }, earthRadius, earthAngle);
         const moonProgress = outbound ? phase.endProgress : phase.startProgress;
-        const moonPoint = pointAround(moonPositionAtProgress(mission, moonProgress), moonRadius, moonAngle);
+        const adjacentHyperbola = segment.phases.find(candidate => (
+            candidate.type === 'moon-flyby'
+            && candidate.hyperbola
+            && (outbound
+                ? candidate.startProgress === phase.endProgress
+                : candidate.endProgress === phase.startProgress)
+        ));
+        const moonPoint = adjacentHyperbola
+            ? lunarHyperbolaPoint(mission, adjacentHyperbola, outbound ? 0 : 1)
+            : pointAround(moonPositionAtProgress(mission, moonProgress), moonRadius, moonAngle);
         const start = outbound ? earthPoint : moonPoint;
         const end = outbound ? moonPoint : earthPoint;
         const startAngle = outbound ? earthAngle : moonAngle;
         const endAngle = outbound ? moonAngle : earthAngle;
-        const startTangent = normalized(orbitTangent(startAngle, phase.departureDirection ?? 1));
-        const endTangent = normalized(orbitTangent(endAngle, phase.arrivalDirection ?? 1));
+        const startTangent = !outbound && adjacentHyperbola
+            ? lunarHyperbolaTangent(mission, adjacentHyperbola, 1)
+            : normalized(orbitTangent(startAngle, phase.departureDirection ?? 1));
+        const endTangent = outbound && adjacentHyperbola
+            ? lunarHyperbolaTangent(mission, adjacentHyperbola, 0)
+            : normalized(orbitTangent(endAngle, phase.arrivalDirection ?? 1));
         const chord = Math.hypot(end.x - start.x, end.y - start.y);
         const handle = chord * (phase.handleScale ?? 0.32);
         const control1 = {
@@ -289,6 +358,8 @@
             point = pointAround({ x: 0, y: 0 }, phase.radius ?? EARTH_MOON_SCENE.earthOrbitRadius, angle);
         } else if (phase.type === 'translunar' || phase.type === 'transearth') {
             point = transferPoint(mission, phase, localProgress);
+        } else if (phase.type === 'moon-flyby' && phase.hyperbola) {
+            point = lunarHyperbolaPoint(mission, phase, localProgress);
         } else if (phase.type === 'moon-orbit' || phase.type === 'moon-flyby') {
             const baseRadius = phase.radius ?? EARTH_MOON_SCENE.moonOrbitRadius;
             const flybyBulge = phase.type === 'moon-flyby'
