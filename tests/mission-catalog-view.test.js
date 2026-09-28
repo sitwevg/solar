@@ -25,10 +25,10 @@ test('фильтры совпадают с утверждёнными групп
     assert.equal(view.missionCountLabel(20), '20 миссий');
 });
 
-test('из каталога запускаются только четыре подготовленные траектории', () => {
+test('из каталога запускаются четыре околоземные и пять лунных траекторий', () => {
     assert.deepEqual(
         missions.filter(view.isSimulationReady).map(mission => mission.id),
-        ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2']
+        ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2', 'luna-2', 'luna-9', 'apollo-11', 'apollo-13', 'luna-17-lunokhod-1']
     );
 
     const ready = structuredClone(missions[0]);

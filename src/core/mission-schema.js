@@ -62,6 +62,8 @@
         ]),
         eventType: Object.freeze([
             'launch',
+            'departure-burn',
+            'science-observation',
             'orbit-insertion',
             'eva',
             'flyby',
@@ -181,6 +183,33 @@
         });
     }
 
+    function validateEarthMoonPhase(phase, path, errors) {
+        if (!isPlainObject(phase)) {
+            pushError(errors, path, 'ожидалась фаза маршрута');
+            return;
+        }
+        const types = [
+            'earth-launch', 'earth-orbit', 'translunar', 'moon-orbit', 'moon-flyby',
+            'moon-descent', 'moon-surface', 'moon-impact', 'moon-ascent', 'transearth', 'earth-entry'
+        ];
+        if (!types.includes(phase.type)) pushError(errors, `${path}.type`, 'неизвестный тип фазы');
+        ['startProgress', 'endProgress'].forEach((field) => {
+            if (!Number.isFinite(phase[field]) || phase[field] < 0 || phase[field] > 1) {
+                pushError(errors, `${path}.${field}`, 'ожидалось число от 0 до 1');
+            }
+        });
+        if (Number.isFinite(phase.startProgress) && Number.isFinite(phase.endProgress)
+            && phase.endProgress <= phase.startProgress) {
+            pushError(errors, `${path}.endProgress`, 'конец фазы должен быть позже начала');
+        }
+        ['angleDeg', 'turns', 'radius', 'earthAngleDeg', 'moonAngleDeg', 'earthRadius', 'moonRadius', 'arcHeight']
+            .forEach((field) => {
+                if (phase[field] !== undefined && !Number.isFinite(phase[field])) {
+                    pushError(errors, `${path}.${field}`, 'ожидалось конечное число');
+                }
+            });
+    }
+
     function validateTrajectory(trajectory, path, errors) {
         if (!isPlainObject(trajectory)) {
             pushError(errors, path, 'ожидался объект траектории');
@@ -234,6 +263,45 @@
                     }
                 }
             }
+            if (segment.model === 'earth-moon-route') {
+                if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
+                if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
+                if (!Array.isArray(segment.phases) || segment.phases.length === 0) {
+                    pushError(errors, `${segmentPath}.phases`, 'ожидался непустой массив фаз');
+                } else {
+                    segment.phases.forEach((phase, phaseIndex) => (
+                        validateEarthMoonPhase(phase, `${segmentPath}.phases[${phaseIndex}]`, errors)
+                    ));
+                    const first = segment.phases[0];
+                    const last = segment.phases.at(-1);
+                    if (first?.startProgress !== 0) pushError(errors, `${segmentPath}.phases[0].startProgress`, 'маршрут должен начинаться с 0');
+                    if (last?.endProgress !== 1) pushError(errors, `${segmentPath}.phases`, 'маршрут должен заканчиваться на 1');
+                    segment.phases.slice(1).forEach((phase, phaseIndex) => {
+                        if (phase.startProgress !== segment.phases[phaseIndex].endProgress) {
+                            pushError(errors, `${segmentPath}.phases[${phaseIndex + 1}].startProgress`, 'между фазами не должно быть разрыва');
+                        }
+                    });
+                }
+                if (!Array.isArray(segment.timeline) || segment.timeline.length < 2) {
+                    pushError(errors, `${segmentPath}.timeline`, 'ожидалось не менее двух точек времени');
+                } else {
+                    segment.timeline.forEach((point, pointIndex) => {
+                        const pointPath = `${segmentPath}.timeline[${pointIndex}]`;
+                        if (!isPlainObject(point)) {
+                            pushError(errors, pointPath, 'ожидалась точка времени');
+                            return;
+                        }
+                        if (!Number.isFinite(point.progress) || point.progress < 0 || point.progress > 1) {
+                            pushError(errors, `${pointPath}.progress`, 'ожидалось число от 0 до 1');
+                        }
+                        if (!isIsoDate(point.date)) pushError(errors, `${pointPath}.date`, 'ожидалась дата ISO 8601');
+                    });
+                    if (segment.timeline[0]?.progress !== 0 || segment.timeline.at(-1)?.progress !== 1) {
+                        pushError(errors, `${segmentPath}.timeline`, 'шкала должна идти от 0 до 1');
+                    }
+                }
+            }
+            if (segment.model === 'earth-moon-route') return;
             if (!Array.isArray(segment.points) || segment.points.length < 2) {
                 pushError(errors, `${segmentPath}.points`, 'сегмент должен содержать не менее двух XYZ-точек');
                 return;

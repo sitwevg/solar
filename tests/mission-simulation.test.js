@@ -5,20 +5,22 @@ const assert = require('node:assert/strict');
 const missions = require('../src/data/missions.js');
 const simulation = require('../src/core/mission-simulation.js');
 
-const readyIds = ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2'];
+const earthOrbitIds = ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2'];
+const lunarIds = ['luna-2', 'luna-9', 'apollo-11', 'apollo-13', 'luna-17-lunokhod-1'];
+const readyIds = [...earthOrbitIds, ...lunarIds];
 
-test('этап 3 готовит четыре околоземные миссии', () => {
+test('подготовлены четыре околоземные и пять лунных миссий', () => {
     const ready = missions.filter(mission => mission.dataStatus === 'trajectory-ready');
     assert.deepEqual(ready.map(mission => mission.id), readyIds);
     ready.forEach(mission => {
         assert.equal(mission.trajectory.accuracy, 'schematic');
-        assert.ok(simulation.orbitalSegment(mission));
+        assert.ok(simulation.primarySegment(mission));
         assert.ok(mission.vehicle.facts.length >= 3);
     });
 });
 
 test('ракета стартует и возвращается к границе Земли, а между ними идёт по орбите', () => {
-    readyIds.forEach(id => {
+    earthOrbitIds.forEach(id => {
         const mission = missions.find(item => item.id === id);
         const start = simulation.positionAtProgress(mission, 0);
         const middle = simulation.positionAtProgress(mission, 0.5);
@@ -37,7 +39,7 @@ test('ракета стартует и возвращается к границ�
 });
 
 test('угловое движение равномерно, а возвращение идёт по касательной', () => {
-    readyIds.forEach(id => {
+    earthOrbitIds.forEach(id => {
         const mission = missions.find(item => item.id === id);
         const samples = [0.2, 0.3, 0.4].map(progress => simulation.positionAtProgress(mission, progress));
         const firstStep = samples[1].angle - samples[0].angle;
@@ -50,6 +52,44 @@ test('угловое движение равномерно, а возвраще�
         const radialDistance = beforeLanding.radiusKm - landing.radiusKm;
         assert.ok(tangentialDistance > radialDistance * 2, `${id}: касательное возвращение`);
     });
+});
+
+test('лунные маршруты показывают только исторически существовавшие орбиты', () => {
+    const phaseTypes = id => simulation.earthMoonSegment(
+        missions.find(mission => mission.id === id)
+    ).phases.map(phase => phase.type);
+
+    assert.ok(!phaseTypes('luna-2').includes('earth-orbit'));
+    assert.ok(!phaseTypes('luna-2').includes('moon-orbit'));
+    assert.ok(!phaseTypes('luna-9').includes('moon-orbit'));
+    assert.ok(phaseTypes('apollo-11').includes('earth-orbit'));
+    assert.ok(phaseTypes('apollo-11').includes('moon-orbit'));
+    assert.ok(phaseTypes('apollo-13').includes('earth-orbit'));
+    assert.ok(phaseTypes('apollo-13').includes('moon-flyby'));
+    assert.ok(!phaseTypes('apollo-13').includes('moon-orbit'));
+    assert.ok(phaseTypes('luna-17-lunokhod-1').includes('earth-orbit'));
+    assert.ok(phaseTypes('luna-17-lunokhod-1').includes('moon-orbit'));
+});
+
+test('локальные витки значительно меньше расстояния между Землёй и Луной', () => {
+    assert.ok(simulation.EARTH_MOON_SCENE.earthOrbitRadius * 2 < 0.5);
+    assert.ok(simulation.EARTH_MOON_SCENE.moonOrbitRadius * 2 < 0.2);
+    lunarIds.forEach(id => {
+        const mission = missions.find(item => item.id === id);
+        for (let step = 0; step <= 100; step += 1) {
+            const point = simulation.positionAtProgress(mission, step / 100);
+            assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y), `${id}: ${step}`);
+        }
+    });
+});
+
+test('лунная шкала времени синхронизирует ключевые фазы, не растягивая перелёт', () => {
+    const apollo11 = missions.find(mission => mission.id === 'apollo-11');
+    const lunokhod = missions.find(mission => mission.id === 'luna-17-lunokhod-1');
+    assert.equal(simulation.missionDateAtProgress(apollo11, 0.1).toISOString(), '1969-07-16T16:16:16.000Z');
+    assert.equal(simulation.missionDateAtProgress(apollo11, 0.58).toISOString(), '1969-07-20T20:17:40.000Z');
+    assert.equal(simulation.missionDateAtProgress(lunokhod, 0.57).toISOString(), '1970-11-17T03:46:50.000Z');
+    assert.equal(simulation.missionDateAtProgress(lunokhod, 1).toISOString(), '1971-10-04T00:00:00.000Z');
 });
 
 test('синяя траектория накапливается только за пройденной частью полёта', () => {

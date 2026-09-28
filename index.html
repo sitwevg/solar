@@ -9,11 +9,11 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.3.1"></script>
-  <script src="src/data/missions.js?v=0.3.2"></script>
+  <script src="src/core/mission-schema.js?v=0.4.0"></script>
+  <script src="src/data/missions.js?v=0.4.0"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.2.3"></script>
+  <script src="src/core/mission-simulation.js?v=0.4.0"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.3.2">
@@ -2025,7 +2025,7 @@
     let missionSimulationFrame = null;
     let missionVehicleHit = null;
     let missionVehicleRenderToken = 0;
-    const MISSION_VEHICLE_ASSET_VERSION = '0.3.2';
+    const MISSION_VEHICLE_ASSET_VERSION = '0.4.0';
     const missionProgress = document.getElementById('mission-progress');
 
     function setMissionSimulationPaused(value) {
@@ -2094,6 +2094,117 @@
       story.style.transform = `translateY(${startY + (endY - startY) * narrativeProgress}px)`;
     }
 
+    function drawEarthMoonMission(progress, timestamp) {
+      const ctx = missionSimulationCtx;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const mobile = width <= 540;
+      const storyWidth = mobile ? 0 : Math.min(360, width * .34) + 32;
+      const visualWidth = width - storyWidth;
+      const horizontalMargin = Math.max(mobile ? 42 : 72, visualWidth * .1);
+      const earthX = horizontalMargin;
+      const moonX = visualWidth - horizontalMargin;
+      const centerY = mobile ? height * .34 : height * .5;
+      const distance = Math.max(1, moonX - earthX);
+      const scene = missionSimulationApi.EARTH_MOON_SCENE;
+      const earthRadius = distance * scene.earthRadius;
+      const moonRadius = Math.max(11, distance * scene.moonRadius);
+      const screenPoint = point => ({
+        x: earthX + point.x * distance,
+        y: centerY + point.y * distance
+      });
+
+      ctx.save();
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(earthX + earthRadius + 14, centerY);
+      ctx.lineTo(moonX - moonRadius - 14, centerY);
+      ctx.strokeStyle = 'rgba(180,204,248,.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      const path = missionSimulationApi.traveledPath(activeMission, progress, 420);
+      if (path.length > 1) {
+        ctx.beginPath();
+        path.forEach((point, index) => {
+          const screen = screenPoint(point);
+          if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
+        });
+        ctx.strokeStyle = 'rgba(104,145,255,.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.shadowBlur = earthRadius * .55;
+      ctx.shadowColor = '#397fdc';
+      ctx.fillStyle = '#174d9c';
+      ctx.beginPath(); ctx.arc(earthX, centerY, earthRadius * .9, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      if (!drawMissionBodyImage(ctx, getImg('planets/earth.png'), earthX, centerY, earthRadius)) {
+        ctx.fillStyle = '#216ed3';
+        ctx.beginPath(); ctx.arc(earthX, centerY, earthRadius, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = 'rgba(220,228,245,.5)';
+      if (!drawMissionBodyImage(ctx, getImg('moons/moon.png'), moonX, centerY, moonRadius)) {
+        ctx.fillStyle = '#bfc4cf';
+        ctx.beginPath(); ctx.arc(moonX, centerY, moonRadius, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(232,242,255,.72)';
+      ctx.font = `${mobile ? 11 : 14}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Земля', earthX, centerY - earthRadius - 12);
+      ctx.fillText('Луна', moonX, centerY - moonRadius - 10);
+
+      if (progress < .16) {
+        const launchAngle = -55 * Math.PI / 180;
+        const launchSite = {
+          x: earthX + Math.cos(launchAngle) * earthRadius,
+          y: centerY + Math.sin(launchAngle) * earthRadius
+        };
+        ctx.fillStyle = 'rgba(126,181,255,.95)';
+        ctx.beginPath(); ctx.arc(launchSite.x, launchSite.y, 3, 0, Math.PI * 2); ctx.fill();
+        if (!mobile) {
+          ctx.font = '9px sans-serif';
+          ctx.fillStyle = 'rgba(178,205,255,.72)';
+          ctx.textAlign = 'left';
+          ctx.fillText(activeMission.countries.includes('США') ? 'Мыс Кеннеди' : 'Байконур', launchSite.x + 7, launchSite.y + 12);
+        }
+      }
+
+      const tailStart = Math.max(0, progress - .022);
+      ctx.beginPath();
+      for (let index = 0; index <= 24; index += 1) {
+        const tailProgress = tailStart + (progress - tailStart) * index / 24;
+        const point = screenPoint(missionSimulationApi.positionAtProgress(activeMission, tailProgress));
+        if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
+      }
+      ctx.strokeStyle = 'rgba(255,205,103,.48)';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      const position = missionSimulationApi.positionAtProgress(activeMission, progress);
+      const vehicle = screenPoint(position);
+      const pulse = 1 + Math.sin(timestamp / 180) * .15;
+      const burning = position.phase === 'earth-entry' || position.phase === 'moon-impact';
+      ctx.save();
+      ctx.shadowBlur = 24 * pulse;
+      ctx.shadowColor = burning ? '#ff6a32' : '#ffd26f';
+      ctx.fillStyle = burning ? '#fff0c2' : '#fff3b0';
+      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 5.5 * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = burning ? 'rgba(255,103,50,.5)' : 'rgba(255,222,126,.32)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(vehicle.x, vehicle.y, 12 * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+      missionVehicleHit = { x: vehicle.x, y: vehicle.y, radius: 24 };
+    }
+
     function drawMissionSimulation(progress, timestamp) {
       const ctx = missionSimulationCtx;
       const width = window.innerWidth;
@@ -2105,6 +2216,11 @@
         const y = (Math.sin(index * 47.3 + 2) * .5 + .5) * height;
         ctx.fillStyle = `rgba(210,225,255,${.12 + (index % 5) * .035})`;
         ctx.fillRect(x, y, index % 7 === 0 ? 1.6 : 1, index % 7 === 0 ? 1.6 : 1);
+      }
+
+      if (missionSimulationApi.earthMoonSegment(activeMission)) {
+        drawEarthMoonMission(progress, timestamp);
+        return;
       }
 
       const mobile = width <= 540;
