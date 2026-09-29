@@ -8,16 +8,65 @@ const simulation = require('../src/core/mission-simulation.js');
 
 const earthOrbitIds = ['sputnik-1', 'vostok-1', 'vostok-6', 'voskhod-2'];
 const lunarIds = ['luna-2', 'luna-9', 'apollo-11', 'apollo-13', 'luna-17-lunokhod-1'];
-const readyIds = [...earthOrbitIds, ...lunarIds];
+const interplanetaryIds = ['mariner-2'];
+const readyIds = [...earthOrbitIds, ...lunarIds, ...interplanetaryIds];
 
-test('подготовлены четыре околоземные и пять лунных миссий', () => {
+test('подготовлены четыре околоземные, пять лунных и первая межпланетная миссия', () => {
     const ready = missions.filter(mission => mission.dataStatus === 'trajectory-ready');
     assert.deepEqual(ready.map(mission => mission.id), readyIds);
     ready.forEach(mission => {
-        assert.equal(mission.trajectory.accuracy, 'schematic');
+        assert.ok(['schematic', 'event-reconstructed'].includes(mission.trajectory.accuracy));
         assert.ok(simulation.primarySegment(mission));
         assert.ok(mission.vehicle.facts.length >= 3);
     });
+});
+
+test('Mariner 2 плавно уходит с парковочной орбиты и проходит рядом с эфемеридной Венерой', () => {
+    const mission = missions.find(item => item.id === 'mariner-2');
+    const segment = simulation.heliocentricTransferSegment(mission);
+    assert.ok(segment);
+    assert.equal(segment.originBody, 'Earth');
+    assert.equal(segment.targetBody, 'Venus');
+    assert.equal(segment.departureProgress, 0.12);
+    assert.equal(segment.encounterProgress, 0.88);
+
+    const start = simulation.positionAtProgress(mission, 0);
+    const earth = simulation.heliocentricBodyPosition(mission, 'Earth', 0);
+    assert.ok(Math.hypot(start.x - earth.x, start.y - earth.y) < segment.parkingDisplayRadiusAu);
+    assert.equal(start.phase, 'earth-launch');
+    assert.equal(simulation.positionAtProgress(mission, 0.06).phase, 'earth-parking');
+    assert.equal(simulation.positionAtProgress(mission, 0.5).phase, 'interplanetary-cruise');
+    assert.equal(simulation.positionAtProgress(mission, 0.9).phase, 'planetary-flyby');
+
+    const encounter = simulation.positionAtProgress(mission, segment.encounterProgress);
+    const venus = simulation.heliocentricBodyPosition(mission, 'Venus', segment.encounterProgress);
+    assert.ok(Math.abs(
+        Math.hypot(encounter.x - venus.x, encounter.y - venus.y, encounter.z - venus.z)
+        - segment.flybyDisplayRadiusAu
+    ) < 2e-5);
+
+    const turnAt = progress => {
+        const epsilon = .0002;
+        const before = simulation.positionAtProgress(mission, progress - epsilon);
+        const join = simulation.positionAtProgress(mission, progress);
+        const after = simulation.positionAtProgress(mission, progress + epsilon);
+        const incoming = { x: join.x - before.x, y: join.y - before.y };
+        const outgoing = { x: after.x - join.x, y: after.y - join.y };
+        return Math.abs(Math.atan2(
+            incoming.x * outgoing.y - incoming.y * outgoing.x,
+            incoming.x * outgoing.x + incoming.y * outgoing.y
+        ) * 180 / Math.PI);
+    };
+    assert.ok(turnAt(segment.departureProgress) < 3, 'уход от Земли не должен ломать траекторию');
+    assert.ok(turnAt(segment.encounterProgress) < 3, 'пролёт Венеры должен быть гладким');
+
+    const startCamera = simulation.heliocentricCameraState(mission, 0, 1);
+    const cruiseCamera = simulation.heliocentricCameraState(mission, .5, 1);
+    const enlargedCamera = simulation.heliocentricCameraState(mission, .5, 1.5);
+    assert.equal(startCamera.automaticZoom, 6);
+    assert.equal(cruiseCamera.automaticZoom, 3);
+    assert.equal(enlargedCamera.zoom, 4.5);
+    assert.equal(cruiseCamera.followProgress, 1);
 });
 
 test('ракета стартует и возвращается к границе Земли, а между ними идёт по орбите', () => {

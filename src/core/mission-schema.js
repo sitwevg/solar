@@ -63,6 +63,7 @@
         eventType: Object.freeze([
             'launch',
             'departure-burn',
+            'course-correction',
             'science-observation',
             'orbit-insertion',
             'eva',
@@ -368,7 +369,54 @@
                     }
                 }
             }
-            if (segment.model === 'earth-moon-route') return;
+            if (segment.model === 'heliocentric-transfer') {
+                if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
+                if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
+                ['originBody', 'targetBody'].forEach((field) => requireString(segment[field], `${segmentPath}.${field}`, errors));
+                ['departureProgress', 'encounterProgress', 'parkingTurns', 'parkingDisplayRadiusAu',
+                    'flybyDisplayRadiusAu', 'transferHandleScale', 'postFlybyAngleDeg', 'postFlybyRadiusAu']
+                    .forEach((field) => {
+                        if (!Number.isFinite(segment[field])) {
+                            pushError(errors, `${segmentPath}.${field}`, 'ожидалось конечное число');
+                        }
+                    });
+                if (Number.isFinite(segment.departureProgress)
+                    && (segment.departureProgress <= 0 || segment.departureProgress >= 1)) {
+                    pushError(errors, `${segmentPath}.departureProgress`, 'ожидалось число больше 0 и меньше 1');
+                }
+                if (Number.isFinite(segment.encounterProgress)
+                    && (segment.encounterProgress <= segment.departureProgress || segment.encounterProgress >= 1)) {
+                    pushError(errors, `${segmentPath}.encounterProgress`, 'встреча должна быть после старта и до завершения');
+                }
+                ['parkingTurns', 'parkingDisplayRadiusAu', 'flybyDisplayRadiusAu',
+                    'transferHandleScale', 'postFlybyRadiusAu'].forEach((field) => {
+                    if (Number.isFinite(segment[field]) && segment[field] <= 0) {
+                        pushError(errors, `${segmentPath}.${field}`, 'ожидалось положительное число');
+                    }
+                });
+                if (segment.launchAngleDeg !== undefined && !Number.isFinite(segment.launchAngleDeg)) {
+                    pushError(errors, `${segmentPath}.launchAngleDeg`, 'ожидалось конечное число');
+                }
+                if (!Array.isArray(segment.timeline) || segment.timeline.length < 2) {
+                    pushError(errors, `${segmentPath}.timeline`, 'ожидалось не менее двух точек времени');
+                } else {
+                    segment.timeline.forEach((point, pointIndex) => {
+                        const pointPath = `${segmentPath}.timeline[${pointIndex}]`;
+                        if (!isPlainObject(point)) {
+                            pushError(errors, pointPath, 'ожидалась точка времени');
+                            return;
+                        }
+                        if (!Number.isFinite(point.progress) || point.progress < 0 || point.progress > 1) {
+                            pushError(errors, `${pointPath}.progress`, 'ожидалось число от 0 до 1');
+                        }
+                        if (!isIsoDate(point.date)) pushError(errors, `${pointPath}.date`, 'ожидалась дата ISO 8601');
+                    });
+                    if (segment.timeline[0]?.progress !== 0 || segment.timeline.at(-1)?.progress !== 1) {
+                        pushError(errors, `${segmentPath}.timeline`, 'шкала должна идти от 0 до 1');
+                    }
+                }
+            }
+            if (segment.model === 'earth-moon-route' || segment.model === 'heliocentric-transfer') return;
             if (!Array.isArray(segment.points) || segment.points.length < 2) {
                 pushError(errors, `${segmentPath}.points`, 'сегмент должен содержать не менее двух XYZ-точек');
                 return;

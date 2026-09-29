@@ -135,3 +135,17 @@ test('схема проверяет специальные параметры п
     assert.ok(result.errors.some(error => error.includes('radialAscent')));
     assert.ok(result.errors.some(error => error.includes('departureTangent')));
 });
+
+test('схема проверяет опорные точки межпланетного перелёта', () => {
+    const broken = structuredClone(missions.find(mission => mission.id === 'mariner-2'));
+    const segment = broken.trajectory.segments[0];
+    segment.encounterProgress = segment.departureProgress;
+    segment.flybyDisplayRadiusAu = -1;
+    segment.timeline.at(-1).progress = .9;
+
+    const result = schema.validateCatalog([broken]);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.some(error => error.includes('encounterProgress')));
+    assert.ok(result.errors.some(error => error.includes('flybyDisplayRadiusAu')));
+    assert.ok(result.errors.some(error => error.includes('шкала должна идти от 0 до 1')));
+});

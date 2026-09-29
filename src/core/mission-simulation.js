@@ -23,6 +23,8 @@
     const LUNAR_MEAN_LONGITUDE_J2000_DEG = 218.3164477;
     const LUNAR_MEAN_MOTION_DEG_PER_DAY = 13.17639648;
     const earthMoonPacingCache = new WeakMap();
+    const heliocentricRouteCache = new WeakMap();
+    const EQJ_TO_ECL = Astronomy?.Rotation_EQJ_ECL ? Astronomy.Rotation_EQJ_ECL() : null;
     const ACCURACY_LABELS = Object.freeze({
         'exact-ephemeris': 'Точная эфемерида',
         'event-reconstructed': 'Реконструкция по событиям',
@@ -40,8 +42,12 @@
         return mission?.trajectory?.segments?.find(segment => segment.model === 'earth-moon-route') || null;
     }
 
+    function heliocentricTransferSegment(mission) {
+        return mission?.trajectory?.segments?.find(segment => segment.model === 'heliocentric-transfer') || null;
+    }
+
     function primarySegment(mission) {
-        return orbitalSegment(mission) || earthMoonSegment(mission);
+        return orbitalSegment(mission) || earthMoonSegment(mission) || heliocentricTransferSegment(mission);
     }
 
     function presentationDurationSeconds(mission) {
@@ -108,7 +114,10 @@
 
     function positionAtProgress(mission, progress) {
         const segment = orbitalSegment(mission);
-        if (!segment) return earthMoonPositionAtProgress(mission, progress);
+        if (!segment) {
+            if (earthMoonSegment(mission)) return earthMoonPositionAtProgress(mission, progress);
+            return heliocentricPositionAtProgress(mission, progress);
+        }
         const orbit = segment.orbit;
         const shownProgress = clamp(progress, 0, 1);
         const launchEnd = clamp(orbit.launchProgress ?? 0.08, 0.02, 0.16);
@@ -135,6 +144,182 @@
 
     function pointAround(center, radius, angle) {
         return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius, z: 0 };
+    }
+
+    function normalizedVector(vector) {
+        const length = Math.hypot(vector.x, vector.y, vector.z || 0) || 1;
+        return { x: vector.x / length, y: vector.y / length, z: (vector.z || 0) / length };
+    }
+
+    function heliocentricBodyPosition(mission, body, progress) {
+        if (!Astronomy?.HelioVector || !EQJ_TO_ECL) return { x: 0, y: 0, z: 0 };
+        const date = missionDateAtProgress(mission, progress);
+        const equatorial = Astronomy.HelioVector(Astronomy.Body[body], date);
+        const ecliptic = Astronomy.RotateVector(EQJ_TO_ECL, equatorial);
+        return { x: ecliptic.x, y: ecliptic.y, z: ecliptic.z };
+    }
+
+    function cubicVector(start, control1, control2, end, progress) {
+        const inverse = 1 - progress;
+        return {
+            x: inverse ** 3 * start.x + 3 * inverse ** 2 * progress * control1.x
+                + 3 * inverse * progress ** 2 * control2.x + progress ** 3 * end.x,
+            y: inverse ** 3 * start.y + 3 * inverse ** 2 * progress * control1.y
+                + 3 * inverse * progress ** 2 * control2.y + progress ** 3 * end.y,
+            z: inverse ** 3 * (start.z || 0) + 3 * inverse ** 2 * progress * (control1.z || 0)
+                + 3 * inverse * progress ** 2 * (control2.z || 0) + progress ** 3 * (end.z || 0)
+        };
+    }
+
+    function heliocentricRawPosition(mission, progress) {
+        const segment = heliocentricTransferSegment(mission);
+        if (!segment) return null;
+        const shownProgress = clamp(progress, 0, 1);
+        const departureProgress = segment.departureProgress;
+        const encounterProgress = segment.encounterProgress;
+        const originBody = segment.originBody || 'Earth';
+        const targetBody = segment.targetBody;
+
+        if (shownProgress <= departureProgress) {
+            const origin = heliocentricBodyPosition(mission, originBody, shownProgress);
+            const local = shownProgress / departureProgress;
+            const angle = (segment.launchAngleDeg || 0) * Math.PI / 180
+                + local * segment.parkingTurns * Math.PI * 2;
+            const rise = .32 + .68 * Math.sin(Math.min(1, local / .16) * Math.PI / 2);
+            const radius = segment.parkingDisplayRadiusAu * rise;
+            return {
+                x: origin.x + Math.cos(angle) * radius,
+                y: origin.y + Math.sin(angle) * radius,
+                z: origin.z,
+                phase: local < .16 ? 'earth-launch' : 'earth-parking'
+            };
+        }
+
+        const departureOrigin = heliocentricBodyPosition(mission, originBody, departureProgress);
+        const departureAngle = (segment.launchAngleDeg || 0) * Math.PI / 180
+            + segment.parkingTurns * Math.PI * 2;
+        const start = {
+            x: departureOrigin.x + Math.cos(departureAngle) * segment.parkingDisplayRadiusAu,
+            y: departureOrigin.y + Math.sin(departureAngle) * segment.parkingDisplayRadiusAu,
+            z: departureOrigin.z
+        };
+        const target = heliocentricBodyPosition(mission, targetBody, encounterProgress);
+        const sunward = normalizedVector({ x: -target.x, y: -target.y, z: -target.z });
+        const encounter = {
+            x: target.x + sunward.x * segment.flybyDisplayRadiusAu,
+            y: target.y + sunward.y * segment.flybyDisplayRadiusAu,
+            z: target.z + sunward.z * segment.flybyDisplayRadiusAu
+        };
+        const startTangent = normalizedVector({ x: -departureOrigin.y, y: departureOrigin.x, z: 0 });
+        const encounterTangent = normalizedVector({ x: -target.y, y: target.x, z: 0 });
+        const chord = Math.hypot(encounter.x - start.x, encounter.y - start.y, encounter.z - start.z);
+        const transferHandle = chord * segment.transferHandleScale;
+        const transferControl1 = {
+            x: start.x + startTangent.x * transferHandle,
+            y: start.y + startTangent.y * transferHandle,
+            z: start.z + startTangent.z * transferHandle
+        };
+        const transferControl2 = {
+            x: encounter.x - encounterTangent.x * transferHandle,
+            y: encounter.y - encounterTangent.y * transferHandle,
+            z: encounter.z - encounterTangent.z * transferHandle
+        };
+
+        if (shownProgress <= encounterProgress) {
+            const local = (shownProgress - departureProgress) / (encounterProgress - departureProgress);
+            return { ...cubicVector(start, transferControl1, transferControl2, encounter, local), phase: 'interplanetary-cruise' };
+        }
+
+        const encounterAngle = Math.atan2(target.y, target.x);
+        const endAngle = encounterAngle + segment.postFlybyAngleDeg * Math.PI / 180;
+        const end = {
+            x: Math.cos(endAngle) * segment.postFlybyRadiusAu,
+            y: Math.sin(endAngle) * segment.postFlybyRadiusAu,
+            z: target.z * .6
+        };
+        const endTangent = normalizedVector({ x: -end.y, y: end.x, z: 0 });
+        const postChord = Math.hypot(end.x - encounter.x, end.y - encounter.y, end.z - encounter.z);
+        const postHandle = postChord * .42;
+        const local = (shownProgress - encounterProgress) / (1 - encounterProgress);
+        const post = cubicVector(
+            encounter,
+            {
+                x: encounter.x + encounterTangent.x * postHandle,
+                y: encounter.y + encounterTangent.y * postHandle,
+                z: encounter.z
+            },
+            {
+                x: end.x - endTangent.x * postHandle,
+                y: end.y - endTangent.y * postHandle,
+                z: end.z
+            },
+            end,
+            local
+        );
+        return { ...post, phase: local < .28 ? 'planetary-flyby' : 'post-flyby' };
+    }
+
+    function heliocentricRouteTable(mission) {
+        if (heliocentricRouteCache.has(mission)) return heliocentricRouteCache.get(mission);
+        const sampleCount = 720;
+        const table = Array.from({ length: sampleCount + 1 }, (_, index) => ({
+            progress: index / sampleCount,
+            point: heliocentricRawPosition(mission, index / sampleCount)
+        }));
+        heliocentricRouteCache.set(mission, table);
+        return table;
+    }
+
+    function heliocentricPositionAtProgress(mission, progress) {
+        const segment = heliocentricTransferSegment(mission);
+        if (!segment) return null;
+        const shownProgress = clamp(progress, 0, 1);
+        const table = heliocentricRouteTable(mission);
+        const scaled = shownProgress * (table.length - 1);
+        const lower = table[Math.floor(scaled)];
+        const upper = table[Math.min(table.length - 1, Math.ceil(scaled))];
+        const local = scaled - Math.floor(scaled);
+        const phase = shownProgress <= segment.departureProgress
+            ? (shownProgress <= segment.departureProgress * .16 ? 'earth-launch' : 'earth-parking')
+            : shownProgress <= segment.encounterProgress
+                ? 'interplanetary-cruise'
+                : shownProgress <= segment.encounterProgress + (1 - segment.encounterProgress) * .28
+                    ? 'planetary-flyby'
+                    : 'post-flyby';
+        return Object.freeze({
+            x: lower.point.x + (upper.point.x - lower.point.x) * local,
+            y: lower.point.y + (upper.point.y - lower.point.y) * local,
+            z: lower.point.z + (upper.point.z - lower.point.z) * local,
+            phase
+        });
+    }
+
+    function heliocentricCameraState(mission, progress, manualZoom = 1) {
+        const segment = heliocentricTransferSegment(mission);
+        if (!segment) return null;
+        const shownProgress = clamp(progress, 0, 1);
+        const craft = heliocentricPositionAtProgress(mission, shownProgress);
+        const earth = heliocentricBodyPosition(mission, segment.originBody || 'Earth', shownProgress);
+        const smoothstep = value => {
+            const normalized = clamp(value, 0, 1);
+            return normalized * normalized * (3 - 2 * normalized);
+        };
+        const followProgress = smoothstep(
+            (shownProgress - segment.departureProgress * .55)
+            / Math.max(.01, .27 - segment.departureProgress * .55)
+        );
+        const zoomOut = smoothstep(
+            (shownProgress - segment.departureProgress * .45)
+            / Math.max(.01, .36 - segment.departureProgress * .45)
+        );
+        return Object.freeze({
+            x: earth.x + (craft.x - earth.x) * followProgress,
+            y: earth.y + (craft.y - earth.y) * followProgress,
+            z: earth.z + (craft.z - earth.z) * followProgress,
+            automaticZoom: 6 - zoomOut * 3,
+            zoom: (6 - zoomOut * 3) * clamp(manualZoom, .5, 1.8),
+            followProgress
+        });
     }
 
     function phaseAngle(segment, phase, localProgress) {
@@ -551,10 +736,12 @@
     }
 
     return Object.freeze({
-        EARTH_RADIUS_KM, EARTH_MOON_SCENE, ACCURACY_LABELS, orbitalSegment, earthMoonSegment, primarySegment,
+        EARTH_RADIUS_KM, EARTH_MOON_SCENE, ACCURACY_LABELS, orbitalSegment, earthMoonSegment,
+        heliocentricTransferSegment, primarySegment,
         presentationDurationSeconds, missionDateAtProgress, positionAtProgress, orbitPath, traveledPath, traveledPathSegments,
         currentEvent, currentEventAtProgress,
-        moonPositionAtProgress, presentationProgressAtElapsed, elapsedFractionAtPresentationProgress,
+        moonPositionAtProgress, heliocentricBodyPosition, heliocentricCameraState,
+        presentationProgressAtElapsed, elapsedFractionAtPresentationProgress,
         formatUtcDateTime, outcomeLabel
     });
 }));

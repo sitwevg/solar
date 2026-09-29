@@ -5,6 +5,12 @@
 }
 #mission-simulation.open { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 #mission-simulation-canvas { position:absolute; inset:0; width:100%; height:100%; }
+#mission-zoom-hint {
+  position:absolute; z-index:2; top:72px; left:16px; display:none; padding:5px 9px;
+  border:1px solid rgba(127,164,255,.18); border-radius:12px; background:rgba(5,13,36,.55);
+  color:rgba(190,207,255,.56); font-size:9px; pointer-events:none;
+}
+#mission-simulation.interplanetary #mission-zoom-hint { display:block; }
 #mission-simulation-header {
   position:relative; z-index:2; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
   padding:max(11px,env(safe-area-inset-top)) 16px 10px; background:linear-gradient(#010617e8,transparent);
@@ -93,6 +99,7 @@
   #mission-story-panel.complete #mission-story-heading { padding-left:24px; }
   #mission-story-panel.complete #mission-complete { padding:10px 14px 14px; }
   #mission-story-panel.complete #mission-complete-card { padding:14px; }
+  #mission-zoom-hint { top:88px; left:10px; }
   #mission-story-scroll { font-size:12px; line-height:1.6; }
   #mission-story-scroll h2 { font-size:19px; }
 }
