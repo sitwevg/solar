@@ -541,7 +541,7 @@
                 originBody: 'Earth', targetBody: 'Venus',
                 departureProgress: 0, encounterProgress: 0.88,
                 closestApproachKm: 34854, closestApproachReference: 'surface', targetRadiusKm: 6051.8,
-                presentationOriginOffsetAu: 0.03, presentationClosestApproachAu: 0.07,
+                presentationOriginOffsetAu: 0.014, presentationClosestApproachAu: 0.07,
                 timeline: [
                     { progress: 0, date: '1962-08-27T07:20:00Z' },
                     { progress: 0.12, date: '1962-09-04T00:00:00Z' },
