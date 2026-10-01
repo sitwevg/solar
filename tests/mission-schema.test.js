@@ -139,17 +139,23 @@ test('схема проверяет специальные параметры п
 test('схема проверяет опорные точки межпланетного перелёта', () => {
     const broken = structuredClone(missions.find(mission => mission.id === 'mariner-2'));
     const segment = broken.trajectory.segments[0];
+    segment.departureProgress = .05;
     segment.encounterProgress = segment.departureProgress;
     segment.closestApproachKm = -1;
     segment.closestApproachReference = 'clouds';
     segment.targetRadiusKm = -1;
+    segment.presentationOriginOffsetAu = -1;
+    segment.presentationClosestApproachAu = -1;
     segment.timeline.at(-1).progress = .9;
 
     const result = schema.validateCatalog([broken]);
     assert.equal(result.valid, false);
+    assert.ok(result.errors.some(error => error.includes('departureProgress')));
     assert.ok(result.errors.some(error => error.includes('encounterProgress')));
     assert.ok(result.errors.some(error => error.includes('closestApproachKm')));
     assert.ok(result.errors.some(error => error.includes('closestApproachReference')));
     assert.ok(result.errors.some(error => error.includes('targetRadiusKm')));
+    assert.ok(result.errors.some(error => error.includes('presentationOriginOffsetAu')));
+    assert.ok(result.errors.some(error => error.includes('presentationClosestApproachAu')));
     assert.ok(result.errors.some(error => error.includes('шкала должна идти от 0 до 1')));
 });

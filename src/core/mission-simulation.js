@@ -274,49 +274,80 @@
         return vectorScale(vectorSubtract(vectorAt(later), vectorAt(earlier)), 1 / (offsetDays * 2));
     }
 
-    function rotateAroundZ(vector, angle) {
-        const cosine = Math.cos(angle);
-        const sine = Math.sin(angle);
-        return {
-            x: vector.x * cosine - vector.y * sine,
-            y: vector.x * sine + vector.y * cosine,
-            z: vector.z || 0
-        };
-    }
-
     function heliocentricRouteSolution(mission) {
         if (heliocentricRouteCache.has(mission)) return heliocentricRouteCache.get(mission);
         const segment = heliocentricTransferSegment(mission);
-        const departureDate = missionDateAtProgress(mission, segment.departureProgress);
+        const departureDate = missionDateAtProgress(mission, 0);
         const encounterDate = missionDateAtProgress(mission, segment.encounterProgress);
         const durationDays = (encounterDate - departureDate) / 86400000;
-        const start = heliocentricBodyPosition(mission, segment.originBody || 'Earth', segment.departureProgress);
+        const earthCenter = heliocentricBodyPosition(mission, segment.originBody || 'Earth', 0);
         const venusCenter = heliocentricBodyPosition(mission, segment.targetBody, segment.encounterProgress);
-
-        let arrival = { ...venusCenter };
-        let initialVelocity = lambertInitialVelocity(start, arrival, durationDays);
-        const venusVelocity = bodyVelocityAtProgress(mission, segment.targetBody, segment.encounterProgress);
-        const preliminaryArrivalVelocity = (() => {
-            const before = propagateSolarState(start, initialVelocity, durationDays - .02);
-            return vectorScale(vectorSubtract(arrival, before), 1 / .02);
-        })();
-        const incomingRelative = vectorSubtract(preliminaryArrivalVelocity, venusVelocity);
-        let closestSide = normalizedVector({ x: -incomingRelative.y, y: incomingRelative.x, z: 0 });
         const sunward = normalizedVector(vectorScale(venusCenter, -1));
-        if (vectorDot(closestSide, sunward) < 0) closestSide = vectorScale(closestSide, -1);
-        const closestApproachFromCenterKm = (segment.closestApproachKm || 34854)
-            + (segment.closestApproachReference === 'surface' ? (segment.targetRadiusKm || 0) : 0);
-        arrival = vectorAdd(venusCenter, vectorScale(closestSide, closestApproachFromCenterKm / AU_KM));
-        initialVelocity = lambertInitialVelocity(start, arrival, durationDays);
-        const beforeArrival = propagateSolarState(start, initialVelocity, durationDays - .02);
-        const arrivalVelocity = vectorScale(vectorSubtract(arrival, beforeArrival), 1 / .02);
-        const relativeArrival = vectorSubtract(arrivalVelocity, venusVelocity);
-        const bend = (segment.encounterBendDeg || 0) * Math.PI / 180;
-        const candidateA = vectorAdd(venusVelocity, rotateAroundZ(relativeArrival, bend));
-        const candidateB = vectorAdd(venusVelocity, rotateAroundZ(relativeArrival, -bend));
-        const departureVelocity = vectorLength(candidateA) >= vectorLength(candidateB) ? candidateA : candidateB;
+        const earthVelocity = bodyVelocityAtProgress(mission, segment.originBody || 'Earth', 0);
+        const venusVelocity = bodyVelocityAtProgress(mission, segment.targetBody, segment.encounterProgress);
+        const screenTangent = normalizedVector({ x: -sunward.y, y: sunward.x, z: 0 });
+        const routeAtAngle = angle => {
+            const direction = normalizedVector(vectorAdd(
+                vectorScale(sunward, Math.cos(angle)),
+                vectorScale(screenTangent, Math.sin(angle))
+            ));
+            const arrival = vectorAdd(
+                venusCenter,
+                vectorScale(direction, segment.presentationClosestApproachAu)
+            );
+            let start = { ...earthCenter };
+            let initialVelocity = lambertInitialVelocity(start, arrival, durationDays);
+            for (let iteration = 0; iteration < 2; iteration += 1) {
+                const departureDirection = normalizedVector(vectorSubtract(initialVelocity, earthVelocity));
+                start = vectorAdd(
+                    earthCenter,
+                    vectorScale(departureDirection, segment.presentationOriginOffsetAu)
+                );
+                initialVelocity = lambertInitialVelocity(start, arrival, durationDays);
+            }
+            const beforeArrival = propagateSolarState(start, initialVelocity, durationDays - .02);
+            const arrivalVelocity = vectorScale(vectorSubtract(arrival, beforeArrival), 1 / .02);
+            const relativeVelocity = vectorSubtract(arrivalVelocity, venusVelocity);
+            return {
+                start, arrival, initialVelocity,
+                radialRate: vectorDot(direction, relativeVelocity)
+            };
+        };
+
+        // The displayed gap is deliberately enlarged, but the encounter must
+        // still be the closest point. Find a sunlit-side direction whose
+        // planet-relative velocity is tangent to that presentation circle.
+        const angularLimit = 85 * Math.PI / 180;
+        const samples = [];
+        for (let index = 0; index <= 34; index += 1) {
+            const angle = -angularLimit + angularLimit * 2 * index / 34;
+            samples.push({ angle, route: routeAtAngle(angle) });
+        }
+        let bracket = null;
+        for (let index = 1; index < samples.length; index += 1) {
+            if (samples[index - 1].route.radialRate * samples[index].route.radialRate <= 0) {
+                const candidate = [samples[index - 1], samples[index]];
+                if (!bracket || Math.abs(candidate[0].angle + candidate[1].angle)
+                    < Math.abs(bracket[0].angle + bracket[1].angle)) bracket = candidate;
+            }
+        }
+        let route = samples.reduce((best, sample) => (
+            Math.abs(sample.route.radialRate) < Math.abs(best.route.radialRate) ? sample : best
+        )).route;
+        if (bracket) {
+            let [lower, upper] = bracket;
+            for (let iteration = 0; iteration < 28; iteration += 1) {
+                const angle = (lower.angle + upper.angle) / 2;
+                const candidate = { angle, route: routeAtAngle(angle) };
+                if (lower.route.radialRate * candidate.route.radialRate <= 0) upper = candidate;
+                else lower = candidate;
+            }
+            route = routeAtAngle((lower.angle + upper.angle) / 2);
+        }
         const solution = Object.freeze({
-            start, arrival, initialVelocity, departureVelocity,
+            start: route.start,
+            arrival: route.arrival,
+            initialVelocity: route.initialVelocity,
             departureDateMs: departureDate.getTime(),
             encounterDateMs: encounterDate.getTime(),
             durationDays
@@ -329,41 +360,16 @@
         const segment = heliocentricTransferSegment(mission);
         if (!segment) return null;
         const shownProgress = clamp(progress, 0, 1);
-        const departureProgress = segment.departureProgress;
         const encounterProgress = segment.encounterProgress;
-        if (shownProgress <= departureProgress) {
-            return { ...heliocentricBodyPosition(mission, segment.originBody || 'Earth', shownProgress), phase: shownProgress < departureProgress * .22 ? 'earth-launch' : 'earth-parking' };
-        }
         const route = heliocentricRouteSolution(mission);
         const shownDateMs = missionDateAtProgress(mission, shownProgress).getTime();
-        if (shownProgress <= encounterProgress) {
-            const elapsedDays = clamp((shownDateMs - route.departureDateMs) / 86400000, 0, route.durationDays);
-            return { ...propagateSolarState(route.start, route.initialVelocity, elapsedDays), phase: 'interplanetary-cruise' };
-        }
-        const elapsedDays = Math.max(0, (shownDateMs - route.encounterDateMs) / 86400000);
-        const post = propagateSolarState(route.arrival, route.departureVelocity, elapsedDays);
+        const elapsedDays = Math.max(0, (shownDateMs - route.departureDateMs) / 86400000);
         const local = (shownProgress - encounterProgress) / (1 - encounterProgress);
-        return { ...post, phase: local < .18 ? 'planetary-flyby' : 'post-flyby' };
-    }
-
-    function heliocentricDepartureDisplay(mission, progress) {
-        const segment = heliocentricTransferSegment(mission);
-        if (!segment) return null;
-        const departureProgress = segment.departureProgress;
-        const shownProgress = clamp(progress, 0, 1);
-        if (shownProgress > departureProgress) return null;
-        const launchAngle = (segment.launchAngleDeg || 0) * Math.PI / 180;
-        const local = shownProgress / departureProgress;
-        const ascentEnd = .22;
-        if (local <= ascentEnd) {
-            const stage = local / ascentEnd;
-            return { angle: launchAngle + stage * .3, radiusScale: 1 + .55 * stage, phase: 'earth-launch' };
-        }
-        const stage = (local - ascentEnd) / (1 - ascentEnd);
         return {
-            angle: launchAngle + .3 + stage * (segment.parkingArcDeg || 62) * Math.PI / 180,
-            radiusScale: 1.55 + .2 * stage,
-            phase: local < .68 ? 'earth-parking' : 'earth-escape'
+            ...propagateSolarState(route.start, route.initialVelocity, elapsedDays),
+            phase: shownProgress < encounterProgress
+                ? 'interplanetary-cruise'
+                : local < .18 ? 'planetary-flyby' : 'post-flyby'
         };
     }
 
@@ -372,13 +378,11 @@
         if (!segment) return null;
         const shownProgress = clamp(progress, 0, 1);
         const point = heliocentricRawPosition(mission, shownProgress);
-        const phase = shownProgress <= segment.departureProgress
-            ? (shownProgress <= segment.departureProgress * .16 ? 'earth-launch' : 'earth-parking')
-            : shownProgress <= segment.encounterProgress
-                ? 'interplanetary-cruise'
-                : shownProgress <= segment.encounterProgress + (1 - segment.encounterProgress) * .18
-                    ? 'planetary-flyby'
-                    : 'post-flyby';
+        const phase = shownProgress < segment.encounterProgress
+            ? 'interplanetary-cruise'
+            : shownProgress <= segment.encounterProgress + (1 - segment.encounterProgress) * .18
+                ? 'planetary-flyby'
+                : 'post-flyby';
         return Object.freeze({
             x: point.x,
             y: point.y,
@@ -397,14 +401,8 @@
             const normalized = clamp(value, 0, 1);
             return normalized * normalized * (3 - 2 * normalized);
         };
-        const followProgress = smoothstep(
-            (shownProgress - segment.departureProgress * .55)
-            / Math.max(.01, .27 - segment.departureProgress * .55)
-        );
-        const zoomOut = smoothstep(
-            (shownProgress - segment.departureProgress * .45)
-            / Math.max(.01, .36 - segment.departureProgress * .45)
-        );
+        const followProgress = smoothstep(shownProgress / .27);
+        const zoomOut = smoothstep(shownProgress / .36);
         return Object.freeze({
             x: earth.x + (craft.x - earth.x) * followProgress,
             y: earth.y + (craft.y - earth.y) * followProgress,
@@ -833,7 +831,7 @@
         heliocentricTransferSegment, primarySegment,
         presentationDurationSeconds, missionDateAtProgress, positionAtProgress, orbitPath, traveledPath, traveledPathSegments,
         currentEvent, currentEventAtProgress,
-        moonPositionAtProgress, heliocentricBodyPosition, heliocentricCameraState, heliocentricDepartureDisplay,
+        moonPositionAtProgress, heliocentricBodyPosition, heliocentricCameraState,
         presentationProgressAtElapsed, elapsedFractionAtPresentationProgress,
         formatUtcDateTime, outcomeLabel
     });

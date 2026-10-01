@@ -9,11 +9,11 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.5.4"></script>
-  <script src="src/data/missions.js?v=0.5.4"></script>
+  <script src="src/core/mission-schema.js?v=0.5.5"></script>
+  <script src="src/data/missions.js?v=0.5.5"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.5.4"></script>
+  <script src="src/core/mission-simulation.js?v=0.5.5"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.2">
@@ -2281,207 +2281,6 @@
       const bodyDisplayRadius = body => body === 'Earth' || body === 'Venus'
         ? (mobile ? 8 : 10)
         : (mobile ? 5.5 : 7);
-      const targetPlanet = PLANETS.find(planet => planet.body === segment.targetBody);
-      const physicalScreenAt = shownProgress => screenPoint(
-        missionSimulationApi.positionAtProgress(activeMission, shownProgress)
-      );
-      const cubicPoint = (start, controlA, controlB, end, amount) => {
-        const inverse = 1 - amount;
-        return {
-          x: inverse ** 3 * start.x
-            + 3 * inverse ** 2 * amount * controlA.x
-            + 3 * inverse * amount ** 2 * controlB.x
-            + amount ** 3 * end.x,
-          y: inverse ** 3 * start.y
-            + 3 * inverse ** 2 * amount * controlA.y
-            + 3 * inverse * amount ** 2 * controlB.y
-            + amount ** 3 * end.y
-        };
-      };
-      const normalizeScreenVector = (from, to) => {
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const length = Math.hypot(dx, dy) || 1;
-        return { x: dx / length, y: dy / length };
-      };
-      const flybyWindow = .23;
-      const flybyProgress = segment.encounterProgress;
-      const flybyStartProgress = Math.max(segment.departureProgress, flybyProgress - flybyWindow);
-      const flybyEndProgress = 1;
-      const flybyStart = physicalScreenAt(flybyStartProgress);
-      const physicalFlybyEnd = physicalScreenAt(flybyEndProgress);
-      const flybyTarget = targetPlanet
-        ? screenPoint(missionSimulationApi.heliocentricBodyPosition(
-            activeMission,
-            segment.targetBody,
-            flybyProgress
-          ))
-        : null;
-      const physicalEncounter = physicalScreenAt(flybyProgress);
-      const flybySideLength = flybyTarget
-        ? Math.hypot(physicalEncounter.x - flybyTarget.x, physicalEncounter.y - flybyTarget.y)
-        : 0;
-      const flybySide = flybySideLength > 1e-6
-        ? {
-            x: (physicalEncounter.x - flybyTarget.x) / flybySideLength,
-            y: (physicalEncounter.y - flybyTarget.y) / flybySideLength
-          }
-        : { x: 1, y: 0 };
-      const targetRadiusKm = targetPlanet ? targetPlanet.diamKm / 2 : 1;
-      const closestApproachFromCenterKm = segment.closestApproachKm
-        + (segment.closestApproachReference === 'surface' ? targetRadiusKm : 0);
-      const reportedDistanceInRadii = closestApproachFromCenterKm
-        ? closestApproachFromCenterKm / targetRadiusKm
-        : 0;
-      const visibleClearance = bodyDisplayRadius(segment.targetBody)
-        * Math.max(2.5, Math.min(7, reportedDistanceInRadii));
-      const flybyTargetEnd = targetPlanet
-        ? screenPoint(missionSimulationApi.heliocentricBodyPosition(
-            activeMission,
-            segment.targetBody,
-            flybyEndProgress
-          ))
-        : physicalFlybyEnd;
-      const flybyEndDirection = normalizeScreenVector(flybyTargetEnd, physicalFlybyEnd);
-      const physicalEndDistance = Math.hypot(
-        physicalFlybyEnd.x - flybyTargetEnd.x,
-        physicalFlybyEnd.y - flybyTargetEnd.y
-      );
-      const visibleEndDistance = Math.max(physicalEndDistance, visibleClearance * 1.75);
-      const flybyEnd = {
-        x: flybyTargetEnd.x + flybyEndDirection.x * visibleEndDistance,
-        y: flybyTargetEnd.y + flybyEndDirection.y * visibleEndDistance
-      };
-      const flybyTargetStart = targetPlanet
-        ? screenPoint(missionSimulationApi.heliocentricBodyPosition(
-            activeMission,
-            segment.targetBody,
-            flybyStartProgress
-          ))
-        : flybyStart;
-      const visibleStartDistance = Math.hypot(
-        flybyStart.x - flybyTargetStart.x,
-        flybyStart.y - flybyTargetStart.y
-      );
-      const flybyClosest = flybyTarget
-        ? {
-            x: flybyTarget.x + flybySide.x * visibleClearance,
-            y: flybyTarget.y + flybySide.y * visibleClearance
-          }
-        : physicalEncounter;
-      let flybyTangent = { x: -flybySide.y, y: flybySide.x };
-      if (flybyTangent.x * (flybyEnd.x - flybyStart.x)
-          + flybyTangent.y * (flybyEnd.y - flybyStart.y) < 0) {
-        flybyTangent = { x: -flybyTangent.x, y: -flybyTangent.y };
-      }
-      const tangentSample = .002;
-      const incomingTangent = normalizeScreenVector(
-        flybyStart,
-        physicalScreenAt(Math.min(flybyProgress, flybyStartProgress + tangentSample))
-      );
-      const outgoingTangent = normalizeScreenVector(
-        physicalScreenAt(Math.max(flybyProgress, flybyEndProgress - tangentSample)),
-        flybyEnd
-      );
-      const incomingDistance = Math.hypot(
-        flybyClosest.x - flybyStart.x,
-        flybyClosest.y - flybyStart.y
-      );
-      const outgoingDistance = Math.hypot(
-        flybyEnd.x - flybyClosest.x,
-        flybyEnd.y - flybyClosest.y
-      );
-      const sharedHandle = Math.min(incomingDistance, outgoingDistance) * .42;
-      const flybyControls = {
-        incomingA: {
-          x: flybyStart.x + incomingTangent.x * incomingDistance * .35,
-          y: flybyStart.y + incomingTangent.y * incomingDistance * .35
-        },
-        incomingB: {
-          x: flybyClosest.x - flybyTangent.x * sharedHandle,
-          y: flybyClosest.y - flybyTangent.y * sharedHandle
-        },
-        outgoingA: {
-          x: flybyClosest.x + flybyTangent.x * sharedHandle,
-          y: flybyClosest.y + flybyTangent.y * sharedHandle
-        },
-        outgoingB: {
-          x: flybyEnd.x - outgoingTangent.x * outgoingDistance * .35,
-          y: flybyEnd.y - outgoingTangent.y * outgoingDistance * .35
-        }
-      };
-      const enforceFlybyClearance = (routePoint, shownProgress) => {
-        const targetAtProgress = screenPoint(missionSimulationApi.heliocentricBodyPosition(
-          activeMission,
-          segment.targetBody,
-          shownProgress
-        ));
-        const dx = routePoint.x - targetAtProgress.x;
-        const dy = routePoint.y - targetAtProgress.y;
-        const distance = Math.hypot(dx, dy);
-        const phaseAmount = shownProgress <= flybyProgress
-          ? (shownProgress - flybyStartProgress)
-              / Math.max(1e-9, flybyProgress - flybyStartProgress)
-          : (shownProgress - flybyProgress)
-              / Math.max(1e-9, flybyEndProgress - flybyProgress);
-        const requiredDistance = shownProgress <= flybyProgress
-          ? visibleStartDistance + (visibleClearance - visibleStartDistance) * phaseAmount
-          : visibleClearance + (visibleEndDistance - visibleClearance) * phaseAmount;
-        const direction = distance > 1e-6
-          ? { x: dx / distance, y: dy / distance }
-          : flybySide;
-        return {
-          x: targetAtProgress.x + direction.x * requiredDistance,
-          y: targetAtProgress.y + direction.y * requiredDistance
-        };
-      };
-      const flybyDisplayPoint = shownProgress => {
-        const physicalScreen = physicalScreenAt(shownProgress);
-        if (!targetPlanet || !segment.closestApproachKm
-            || shownProgress < flybyStartProgress || shownProgress > flybyEndProgress) {
-          return physicalScreen;
-        }
-
-        // At the overview scale the real 34,854 km gap is sub-pixel while the
-        // planet marker is enlarged. Two joined cubic arcs show that gap as the
-        // same number of visible Venus radii and share one tangent at encounter.
-        if (shownProgress <= flybyProgress) {
-          const amount = (shownProgress - flybyStartProgress)
-            / Math.max(1e-9, flybyProgress - flybyStartProgress);
-          return enforceFlybyClearance(cubicPoint(
-            flybyStart,
-            flybyControls.incomingA,
-            flybyControls.incomingB,
-            flybyClosest,
-            amount
-          ), shownProgress);
-        }
-        const amount = (shownProgress - flybyProgress)
-          / Math.max(1e-9, flybyEndProgress - flybyProgress);
-        return enforceFlybyClearance(cubicPoint(
-          flybyClosest,
-          flybyControls.outgoingA,
-          flybyControls.outgoingB,
-          flybyEnd,
-          amount
-        ), shownProgress);
-      };
-      const departurePointAtProgress = shownProgress => {
-        const position = missionSimulationApi.positionAtProgress(activeMission, shownProgress);
-        const screen = screenPoint(position);
-        const departure = missionSimulationApi.heliocentricDepartureDisplay(activeMission, shownProgress);
-        if (!departure) return screen;
-        const earth = screenPoint(missionSimulationApi.heliocentricBodyPosition(
-          activeMission,
-          segment.originBody || 'Earth',
-          shownProgress
-        ));
-        const earthRadius = mobile ? 8 : 10;
-        return {
-          x: earth.x + Math.cos(departure.angle) * earthRadius * departure.radiusScale,
-          y: earth.y + Math.sin(departure.angle) * earthRadius * departure.radiusScale
-        };
-      };
 
       ensureOrbitPaths();
       const innerBodies = new Set(['Mercury', 'Venus', 'Earth', 'Mars']);
@@ -2505,13 +2304,10 @@
       if (progress > 0) {
         ctx.beginPath();
         for (let index = 0; index <= pathSampleCount; index += 1) {
-          const pathProgress = progress <= segment.departureProgress
-            ? progress * index / pathSampleCount
-            : segment.departureProgress
-                + (progress - segment.departureProgress) * index / pathSampleCount;
-          const screen = progress <= segment.departureProgress
-            ? departurePointAtProgress(pathProgress)
-            : flybyDisplayPoint(pathProgress);
+          const pathProgress = progress * index / pathSampleCount;
+          const screen = screenPoint(
+            missionSimulationApi.positionAtProgress(activeMission, pathProgress)
+          );
           if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
         }
         ctx.strokeStyle = 'rgba(104,145,255,.42)';
@@ -2555,25 +2351,22 @@
         ctx.fillText(planet.name, screen.x, screen.y - radius - 7);
       });
 
-      const tailStart = Math.max(
-        progress <= segment.departureProgress ? 0 : segment.departureProgress,
-        progress - .018
-      );
+      const tailStart = Math.max(0, progress - .018);
       ctx.beginPath();
       for (let index = 0; index <= 24; index += 1) {
         const tailProgress = tailStart + (progress - tailStart) * index / 24;
-        const point = progress <= segment.departureProgress
-          ? departurePointAtProgress(tailProgress)
-          : flybyDisplayPoint(tailProgress);
+        const point = screenPoint(
+          missionSimulationApi.positionAtProgress(activeMission, tailProgress)
+        );
         if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
       }
       ctx.strokeStyle = 'rgba(255,205,103,.55)';
       ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      const vehicle = progress <= segment.departureProgress
-        ? departurePointAtProgress(progress)
-        : flybyDisplayPoint(progress);
+      const vehicle = screenPoint(
+        missionSimulationApi.positionAtProgress(activeMission, progress)
+      );
       const pulse = 1 + Math.sin(timestamp / 180) * .15;
       ctx.save();
       ctx.shadowBlur = 26 * pulse;

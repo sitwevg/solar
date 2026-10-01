@@ -373,22 +373,23 @@
                 if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
                 if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
                 ['originBody', 'targetBody'].forEach((field) => requireString(segment[field], `${segmentPath}.${field}`, errors));
-                ['departureProgress', 'encounterProgress', 'parkingArcDeg', 'escapeSweepDeg',
-                    'parkingAltitudeKm', 'closestApproachKm', 'targetRadiusKm', 'encounterBendDeg']
+                ['departureProgress', 'encounterProgress', 'closestApproachKm', 'targetRadiusKm',
+                    'presentationOriginOffsetAu', 'presentationClosestApproachAu']
                     .forEach((field) => {
                         if (!Number.isFinite(segment[field])) {
                             pushError(errors, `${segmentPath}.${field}`, 'ожидалось конечное число');
                         }
                     });
                 if (Number.isFinite(segment.departureProgress)
-                    && (segment.departureProgress <= 0 || segment.departureProgress >= 1)) {
-                    pushError(errors, `${segmentPath}.departureProgress`, 'ожидалось число больше 0 и меньше 1');
+                    && segment.departureProgress !== 0) {
+                    pushError(errors, `${segmentPath}.departureProgress`, 'межпланетная сцена должна начинаться сразу после ухода от Земли');
                 }
                 if (Number.isFinite(segment.encounterProgress)
                     && (segment.encounterProgress <= segment.departureProgress || segment.encounterProgress >= 1)) {
                     pushError(errors, `${segmentPath}.encounterProgress`, 'встреча должна быть после старта и до завершения');
                 }
-                ['parkingArcDeg', 'escapeSweepDeg', 'parkingAltitudeKm', 'closestApproachKm', 'targetRadiusKm'].forEach((field) => {
+                ['closestApproachKm', 'targetRadiusKm', 'presentationOriginOffsetAu',
+                    'presentationClosestApproachAu'].forEach((field) => {
                     if (Number.isFinite(segment[field]) && segment[field] <= 0) {
                         pushError(errors, `${segmentPath}.${field}`, 'ожидалось положительное число');
                     }

@@ -21,34 +21,50 @@ test('подготовлены четыре околоземные, пять л�
     });
 });
 
-test('Mariner 2 проходит короткую парковочную дугу и синхронно встречает эфемеридную Венеру', () => {
+test('Mariner 2 идёт одной гладкой дугой к освещённой стороне эфемеридной Венеры', () => {
     const mission = missions.find(item => item.id === 'mariner-2');
     const segment = simulation.heliocentricTransferSegment(mission);
     assert.ok(segment);
     assert.equal(segment.originBody, 'Earth');
     assert.equal(segment.targetBody, 'Venus');
-    assert.equal(segment.departureProgress, 0.12);
+    assert.equal(segment.departureProgress, 0);
     assert.equal(segment.encounterProgress, 0.88);
 
     const start = simulation.positionAtProgress(mission, 0);
     const earth = simulation.heliocentricBodyPosition(mission, 'Earth', 0);
-    assert.ok(Math.hypot(start.x - earth.x, start.y - earth.y) < 1e-10);
-    assert.equal(start.phase, 'earth-launch');
-    assert.equal(simulation.positionAtProgress(mission, 0.06).phase, 'earth-parking');
-    const departureDisplay = simulation.heliocentricDepartureDisplay(mission, segment.departureProgress);
-    assert.ok(departureDisplay.radiusScale < 2, 'экранный уход должен оставаться рядом с Землёй');
-    assert.ok(segment.parkingArcDeg < 180, 'полного витка вокруг Земли не было');
+    assert.ok(Math.abs(
+        Math.hypot(start.x - earth.x, start.y - earth.y, start.z - earth.z)
+        - segment.presentationOriginOffsetAu
+    ) < 1e-10, 'показ начинается рядом с Землёй, уже после разгона');
+    assert.equal(start.phase, 'interplanetary-cruise');
+    assert.equal(simulation.positionAtProgress(mission, 0.06).phase, 'interplanetary-cruise');
     assert.equal(simulation.positionAtProgress(mission, 0.5).phase, 'interplanetary-cruise');
     assert.equal(simulation.positionAtProgress(mission, 0.9).phase, 'planetary-flyby');
+    assert.notDeepEqual(
+        simulation.heliocentricBodyPosition(mission, 'Earth', 0),
+        simulation.heliocentricBodyPosition(mission, 'Earth', .01),
+        'Земля движется с первого кадра межпланетной сцены'
+    );
 
     const encounter = simulation.positionAtProgress(mission, segment.encounterProgress);
     const venus = simulation.heliocentricBodyPosition(mission, 'Venus', segment.encounterProgress);
     assert.equal(segment.closestApproachReference, 'surface');
     assert.equal(segment.targetRadiusKm, 6051.8);
+    assert.equal(
+        simulation.missionDateAtProgress(mission, segment.encounterProgress).toISOString(),
+        '1962-12-14T19:59:28.000Z'
+    );
     assert.ok(Math.abs(
         Math.hypot(encounter.x - venus.x, encounter.y - venus.y, encounter.z - venus.z)
-        - (segment.closestApproachKm + segment.targetRadiusKm) / 149597870.7
-    ) < 2e-6);
+        - segment.presentationClosestApproachAu
+    ) < 2e-6, 'схематический просвет не должен скрываться маркером Венеры');
+    const venusRadius = Math.hypot(venus.x, venus.y, venus.z);
+    const sunward = { x: -venus.x / venusRadius, y: -venus.y / venusRadius, z: -venus.z / venusRadius };
+    const relative = { x: encounter.x - venus.x, y: encounter.y - venus.y, z: encounter.z - venus.z };
+    assert.ok(
+        relative.x * sunward.x + relative.y * sunward.y + relative.z * sunward.z > 0,
+        'точка пролёта должна находиться на освещённой стороне Венеры'
+    );
     const venusDistance = progress => {
         const point = simulation.positionAtProgress(mission, progress);
         const body = simulation.heliocentricBodyPosition(mission, 'Venus', progress);
@@ -57,7 +73,19 @@ test('Mariner 2 проходит короткую парковочную дуг�
     assert.ok(venusDistance(.86) > venusDistance(.87));
     assert.ok(venusDistance(.87) > venusDistance(.88));
     assert.ok(venusDistance(.89) > venusDistance(.88));
-    assert.ok(venusDistance(.9) > venusDistance(.89), 'после пролёта аппарат не должен возвращаться к Венере');
+    assert.ok(venusDistance(.9) > venusDistance(.89), 'встреча должна быть ближайшей точкой пролёта');
+
+    const heading = progress => {
+        const before = simulation.positionAtProgress(mission, progress - .001);
+        const after = simulation.positionAtProgress(mission, progress + .001);
+        return Math.atan2(after.y - before.y, after.x - before.x);
+    };
+    const headingBefore = heading(.879);
+    const headingAfter = heading(.881);
+    assert.ok(Math.abs(Math.atan2(
+        Math.sin(headingAfter - headingBefore),
+        Math.cos(headingAfter - headingBefore)
+    )) < .02, 'у Венеры не должно быть программного излома или второго манёвра');
 
     const startCamera = simulation.heliocentricCameraState(mission, 0, 1);
     const cruiseCamera = simulation.heliocentricCameraState(mission, .5, 1);

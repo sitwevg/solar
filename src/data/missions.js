@@ -537,29 +537,25 @@
                 'Десять азотных микродвигателей поддерживали ориентацию по Солнцу и Земле.',
                 'Аппарат первым успешно выполнил коррекцию траектории на пути к другой планете.'
             ], 'spacecraft/mariner-2.png', 'Реалистичная учебная реконструкция межпланетной станции Mariner 2 с двумя солнечными панелями'),
-            trajectory: heliocentricTransferTrajectory('1962-08-27T06:53:14Z', '1963-01-03T07:00:00Z', {
+            trajectory: heliocentricTransferTrajectory('1962-08-27T07:20:00Z', '1963-01-03T07:00:00Z', {
                 originBody: 'Earth', targetBody: 'Venus',
-                departureProgress: 0.12, encounterProgress: 0.88,
-                launchAngleDeg: -150, parkingArcDeg: 62, escapeSweepDeg: 145,
-                parkingAltitudeKm: 185,
+                departureProgress: 0, encounterProgress: 0.88,
                 closestApproachKm: 34854, closestApproachReference: 'surface', targetRadiusKm: 6051.8,
-                encounterBendDeg: 36,
+                presentationOriginOffsetAu: 0.03, presentationClosestApproachAu: 0.07,
                 timeline: [
-                    { progress: 0, date: '1962-08-27T06:53:14Z' },
-                    { progress: 0.06, date: '1962-08-27T07:05:00Z' },
-                    { progress: 0.12, date: '1962-08-27T07:20:00Z' },
-                    { progress: 0.18, date: '1962-09-04T00:00:00Z' },
+                    { progress: 0, date: '1962-08-27T07:20:00Z' },
+                    { progress: 0.12, date: '1962-09-04T00:00:00Z' },
                     { progress: 0.88, date: '1962-12-14T19:59:28Z' },
                     { progress: 1, date: '1963-01-03T07:00:00Z' }
                 ]
             }),
             targets: [target('earth', 'Земля', 'earth', 'origin'), target('venus', 'Венера', 'planet', 'flyby')],
             events: [
-                event('launch', 'launch', '1962-08-27T06:53:14Z', 'Старт с мыса Канаверал', 0, 'Atlas-Agena B подняла Mariner 2 с пускового комплекса 12.'),
-                event('parking-orbit', 'orbit-insertion', '1962-08-27T07:05:00Z', 'Парковочная орбита Земли', 0.06, 'Agena с аппаратом прошла короткий участок круговой орбиты высотой около 185 километров.'),
-                event('departure', 'departure-burn', '1962-08-27T07:20:00Z', 'Уход к Венере', 0.12, 'Повторное включение Agena придало аппарату скорость ухода от Земли.'),
-                event('midcourse', 'course-correction', '1962-09-04T00:00:00Z', 'Первая успешная коррекция курса', 0.18, 'Собственный двигатель станции проработал около 27 секунд и уточнил точку встречи с Венерой.'),
-                event('venus-flyby', 'flyby', '1962-12-14T19:59:28Z', 'Пролёт у Венеры', 0.88, 'Mariner 2 прошёл в 34 854 километрах от планеты и провёл 42-минутное сканирование.'),
+                event('launch', 'launch', '1962-08-27T06:53:14Z', 'Старт с мыса Канаверал', undefined, 'Atlas-Agena B подняла Mariner 2 с пускового комплекса 12.'),
+                event('parking-orbit', 'orbit-insertion', '1962-08-27T07:05:00Z', 'Парковочная орбита Земли', undefined, 'Agena с аппаратом прошла короткий участок круговой орбиты высотой около 185 километров.'),
+                event('departure', 'departure-burn', '1962-08-27T07:20:00Z', 'Уход к Венере', 0, 'Повторное включение Agena придало аппарату скорость ухода от Земли.'),
+                event('midcourse', 'course-correction', '1962-09-04T00:00:00Z', 'Первая успешная коррекция курса', 0.12, 'Собственный двигатель станции проработал около 27 секунд и уточнил точку встречи с Венерой.'),
+                event('venus-flyby', 'flyby', '1962-12-14T19:59:28Z', 'Пролёт у Венеры', 0.88, 'Mariner 2 прошёл над освещённой стороной Венеры на высоте около 34 854 километров и провёл 42-минутное сканирование.'),
                 event('mission-end', 'mission-end', '1963-01-03T07:00:00Z', 'Последний сеанс связи', 1, 'Сигнал приняли на рекордном тогда расстоянии около 87 миллионов километров от Земли.')
             ],
             sources: [
