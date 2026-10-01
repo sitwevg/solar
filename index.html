@@ -13,10 +13,10 @@
   <script src="src/data/missions.js?v=0.5.1"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.5.1"></script>
+  <script src="src/core/mission-simulation.js?v=0.5.2"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.1">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.2">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -469,9 +469,7 @@
         <div id="mission-simulation-name"></div>
         <div id="mission-simulation-date"></div>
       </div>
-      <div id="mission-accuracy"></div>
     </header>
-    <div id="mission-zoom-hint" aria-hidden="true">Колесо/щипок — масштаб · перетаскивание — карта</div>
     <aside id="mission-story-panel" aria-label="Рассказ о миссии">
       <div id="mission-story-heading">История миссии</div>
       <div id="mission-story-viewport">
@@ -2280,7 +2278,7 @@
         x: viewportCenter.x + missionPanX + (point.x - cameraTarget.x) * pixelsPerAu,
         y: viewportCenter.y + missionPanY - (point.y - cameraTarget.y) * pixelsPerAu
       });
-      const displayPointAtProgress = shownProgress => {
+      const departurePointAtProgress = shownProgress => {
         const position = missionSimulationApi.positionAtProgress(activeMission, shownProgress);
         const screen = screenPoint(position);
         const departure = missionSimulationApi.heliocentricDepartureDisplay(activeMission, shownProgress);
@@ -2319,7 +2317,13 @@
       if (progress > 0) {
         ctx.beginPath();
         for (let index = 0; index <= pathSampleCount; index += 1) {
-          const screen = displayPointAtProgress(progress * index / pathSampleCount);
+          const pathProgress = progress <= segment.departureProgress
+            ? progress * index / pathSampleCount
+            : segment.departureProgress
+                + (progress - segment.departureProgress) * index / pathSampleCount;
+          const screen = progress <= segment.departureProgress
+            ? departurePointAtProgress(pathProgress)
+            : screenPoint(missionSimulationApi.positionAtProgress(activeMission, pathProgress));
           if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
         }
         ctx.strokeStyle = 'rgba(104,145,255,.42)';
@@ -2365,18 +2369,25 @@
         ctx.fillText(planet.name, screen.x, screen.y - radius - 7);
       });
 
-      const tailStart = Math.max(0, progress - .018);
+      const tailStart = Math.max(
+        progress <= segment.departureProgress ? 0 : segment.departureProgress,
+        progress - .018
+      );
       ctx.beginPath();
       for (let index = 0; index <= 24; index += 1) {
         const tailProgress = tailStart + (progress - tailStart) * index / 24;
-        const point = displayPointAtProgress(tailProgress);
+        const point = progress <= segment.departureProgress
+          ? departurePointAtProgress(tailProgress)
+          : screenPoint(missionSimulationApi.positionAtProgress(activeMission, tailProgress));
         if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
       }
       ctx.strokeStyle = 'rgba(255,205,103,.55)';
       ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      const vehicle = displayPointAtProgress(progress);
+      const vehicle = progress <= segment.departureProgress
+        ? departurePointAtProgress(progress)
+        : screenPoint(missionSimulationApi.positionAtProgress(activeMission, progress));
       const pulse = 1 + Math.sin(timestamp / 180) * .15;
       ctx.save();
       ctx.shadowBlur = 26 * pulse;
@@ -2635,7 +2646,6 @@
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
       populateMissionVehicle(mission);
       document.getElementById('mission-simulation-name').textContent = mission.name;
-      document.getElementById('mission-accuracy').textContent = missionSimulationApi.ACCURACY_LABELS[mission.trajectory.accuracy];
       missionProgress.value = '0';
       missionProgress.setAttribute('aria-valuetext', '0%');
       setMissionSimulationPaused(true);

@@ -5,20 +5,15 @@
 }
 #mission-simulation.open { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 #mission-simulation-canvas { position:absolute; inset:0; width:100%; height:100%; cursor:grab; touch-action:none; }
-#mission-zoom-hint {
-  position:absolute; z-index:2; top:72px; left:16px; display:none; padding:5px 9px;
-  border:1px solid rgba(127,164,255,.18); border-radius:12px; background:rgba(5,13,36,.55);
-  color:rgba(190,207,255,.56); font-size:9px; pointer-events:none;
-}
-#mission-simulation.interplanetary #mission-zoom-hint { display:block; }
 #mission-simulation-header {
-  position:relative; z-index:2; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
+  position:relative; z-index:2; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px;
   padding:max(11px,env(safe-area-inset-top)) 16px 10px; background:linear-gradient(#010617e8,transparent);
 }
+#mission-simulation-header::after { content:''; }
+#mission-simulation-exit { justify-self:start; }
 #mission-simulation-title { min-width:0; text-align:center; }
 #mission-simulation-name { overflow:hidden; font-size:17px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
 #mission-simulation-date { margin-top:2px; color:rgba(190,207,255,.58); font-size:11px; font-variant-numeric:tabular-nums; }
-#mission-accuracy { justify-self:end; padding:5px 9px; border:1px solid rgba(127,164,255,.26); border-radius:13px; color:#9fbcff; background:rgba(74,108,205,.12); font-size:9px; }
 #mission-story-panel {
   position:absolute; z-index:2; top:88px; right:16px; bottom:102px; width:min(360px,34vw);
   display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(129,163,255,.18);
@@ -89,8 +84,6 @@
 #mission-complete-result { margin-top:8px; color:#71dfa0; font-size:15px; }
 #mission-complete-confirm { width:100%; margin-top:12px; padding:11px; border:1px solid rgba(104,220,153,.36); border-radius:13px; background:rgba(61,190,116,.18); color:#dfffea; font-weight:600; cursor:pointer; }
 @media (max-width:540px) {
-  #mission-simulation-header { grid-template-columns:auto 1fr; }
-  #mission-accuracy { grid-column:1/-1; justify-self:center; }
   #mission-simulation-name { font-size:15px; }
   #mission-simulation-controls { right:8px; left:8px; }
   .mission-sim-button { padding:9px 11px; font-size:11px; }
@@ -99,7 +92,6 @@
   #mission-story-panel.complete #mission-story-heading { padding-left:24px; }
   #mission-story-panel.complete #mission-complete { padding:10px 14px 14px; }
   #mission-story-panel.complete #mission-complete-card { padding:14px; }
-  #mission-zoom-hint { top:88px; left:10px; }
   #mission-story-scroll { font-size:12px; line-height:1.6; }
   #mission-story-scroll h2 { font-size:19px; }
 }

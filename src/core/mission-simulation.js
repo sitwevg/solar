@@ -349,34 +349,19 @@
         if (!segment) return null;
         const departureProgress = segment.departureProgress;
         const shownProgress = clamp(progress, 0, 1);
+        if (shownProgress > departureProgress) return null;
         const launchAngle = (segment.launchAngleDeg || 0) * Math.PI / 180;
         const local = shownProgress / departureProgress;
-        if (shownProgress <= departureProgress) {
-            const ascentEnd = .22;
-            const parkingEnd = .58;
-            if (local <= ascentEnd) {
-                const stage = local / ascentEnd;
-                return { angle: launchAngle + stage * .3, radiusScale: 1 + .55 * stage, phase: 'earth-launch' };
-            }
-            if (local <= parkingEnd) {
-                const stage = (local - ascentEnd) / (parkingEnd - ascentEnd);
-                return { angle: launchAngle + .3 + stage * (segment.parkingArcDeg || 62) * Math.PI / 180, radiusScale: 1.55, phase: 'earth-parking' };
-            }
-            const stage = (local - parkingEnd) / (1 - parkingEnd);
-            return {
-                angle: launchAngle + .3 + (segment.parkingArcDeg || 62) * Math.PI / 180
-                    + stage * (segment.escapeSweepDeg || 145) * Math.PI / 180,
-                radiusScale: 1.55 + .32 * stage,
-                phase: 'earth-escape'
-            };
+        const ascentEnd = .22;
+        if (local <= ascentEnd) {
+            const stage = local / ascentEnd;
+            return { angle: launchAngle + stage * .3, radiusScale: 1 + .55 * stage, phase: 'earth-launch' };
         }
-        const fadeEnd = departureProgress + .035;
-        if (shownProgress >= fadeEnd) return null;
-        const fade = (shownProgress - departureProgress) / (fadeEnd - departureProgress);
+        const stage = (local - ascentEnd) / (1 - ascentEnd);
         return {
-            angle: launchAngle + .3 + ((segment.parkingArcDeg || 62) + (segment.escapeSweepDeg || 145)) * Math.PI / 180,
-            radiusScale: 1.87 * (1 - fade * fade * (3 - 2 * fade)),
-            phase: 'earth-escape'
+            angle: launchAngle + .3 + stage * (segment.parkingArcDeg || 62) * Math.PI / 180,
+            radiusScale: 1.55 + .2 * stage,
+            phase: local < .68 ? 'earth-parking' : 'earth-escape'
         };
     }
 
