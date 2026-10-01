@@ -148,9 +148,9 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
     assert.match(html, /id="mission-vehicle-image"/);
-    assert.match(html, /src\/core\/mission-schema\.js\?v=0\.5\.1/);
-    assert.match(html, /src\/data\/missions\.js\?v=0\.5\.1/);
-    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.5\.3/);
+    assert.match(html, /src\/core\/mission-schema\.js\?v=0\.5\.4/);
+    assert.match(html, /src\/data\/missions\.js\?v=0\.5\.4/);
+    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.5\.4/);
     assert.match(html, /updateMissionStory\(elapsedFraction\)/);
     assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.4\.2/);
     assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);
@@ -181,7 +181,8 @@ test('каталог миссий доступен с карты и блокир
     assert.doesNotMatch(html, /mission-accuracy/);
     assert.match(html, /progress <= segment\.departureProgress[\s\S]*?departurePointAtProgress\(pathProgress\)[\s\S]*?flybyDisplayPoint\(pathProgress\)/);
     assert.match(html, /const flybyDisplayPoint = shownProgress =>/);
-    assert.match(html, /reportedDistanceInRadii = segment\.closestApproachKm[\s\S]*?\/ targetRadiusKm/);
+    assert.match(html, /closestApproachFromCenterKm = segment\.closestApproachKm[\s\S]*?segment\.closestApproachReference === 'surface'/);
+    assert.match(html, /reportedDistanceInRadii = closestApproachFromCenterKm[\s\S]*?\/ targetRadiusKm/);
     assert.match(html, /const flybyWindow = \.23/);
     assert.match(html, /visibleEndDistance = Math\.max\(physicalEndDistance, visibleClearance \* 1\.75\)/);
     assert.match(html, /const enforceFlybyClearance = \(routePoint, shownProgress\) =>/);

@@ -43,9 +43,11 @@ test('Mariner 2 проходит короткую парковочную дуг�
 
     const encounter = simulation.positionAtProgress(mission, segment.encounterProgress);
     const venus = simulation.heliocentricBodyPosition(mission, 'Venus', segment.encounterProgress);
+    assert.equal(segment.closestApproachReference, 'surface');
+    assert.equal(segment.targetRadiusKm, 6051.8);
     assert.ok(Math.abs(
         Math.hypot(encounter.x - venus.x, encounter.y - venus.y, encounter.z - venus.z)
-        - segment.closestApproachKm / 149597870.7
+        - (segment.closestApproachKm + segment.targetRadiusKm) / 149597870.7
     ) < 2e-6);
     const venusDistance = progress => {
         const point = simulation.positionAtProgress(mission, progress);

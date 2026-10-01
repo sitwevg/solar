@@ -541,7 +541,9 @@
                 originBody: 'Earth', targetBody: 'Venus',
                 departureProgress: 0.12, encounterProgress: 0.88,
                 launchAngleDeg: -150, parkingArcDeg: 62, escapeSweepDeg: 145,
-                parkingAltitudeKm: 185, closestApproachKm: 34854, encounterBendDeg: 36,
+                parkingAltitudeKm: 185,
+                closestApproachKm: 34854, closestApproachReference: 'surface', targetRadiusKm: 6051.8,
+                encounterBendDeg: 36,
                 timeline: [
                     { progress: 0, date: '1962-08-27T06:53:14Z' },
                     { progress: 0.06, date: '1962-08-27T07:05:00Z' },

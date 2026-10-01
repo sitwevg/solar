@@ -9,11 +9,11 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.5.1"></script>
-  <script src="src/data/missions.js?v=0.5.1"></script>
+  <script src="src/core/mission-schema.js?v=0.5.4"></script>
+  <script src="src/data/missions.js?v=0.5.4"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.5.3"></script>
+  <script src="src/core/mission-simulation.js?v=0.5.4"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
   <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.2">
@@ -2328,8 +2328,10 @@
           }
         : { x: 1, y: 0 };
       const targetRadiusKm = targetPlanet ? targetPlanet.diamKm / 2 : 1;
-      const reportedDistanceInRadii = segment.closestApproachKm
-        ? segment.closestApproachKm / targetRadiusKm
+      const closestApproachFromCenterKm = segment.closestApproachKm
+        + (segment.closestApproachReference === 'surface' ? targetRadiusKm : 0);
+      const reportedDistanceInRadii = closestApproachFromCenterKm
+        ? closestApproachFromCenterKm / targetRadiusKm
         : 0;
       const visibleClearance = bodyDisplayRadius(segment.targetBody)
         * Math.max(2.5, Math.min(7, reportedDistanceInRadii));

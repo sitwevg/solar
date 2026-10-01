@@ -374,7 +374,7 @@
                 if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
                 ['originBody', 'targetBody'].forEach((field) => requireString(segment[field], `${segmentPath}.${field}`, errors));
                 ['departureProgress', 'encounterProgress', 'parkingArcDeg', 'escapeSweepDeg',
-                    'parkingAltitudeKm', 'closestApproachKm', 'encounterBendDeg']
+                    'parkingAltitudeKm', 'closestApproachKm', 'targetRadiusKm', 'encounterBendDeg']
                     .forEach((field) => {
                         if (!Number.isFinite(segment[field])) {
                             pushError(errors, `${segmentPath}.${field}`, 'ожидалось конечное число');
@@ -388,11 +388,14 @@
                     && (segment.encounterProgress <= segment.departureProgress || segment.encounterProgress >= 1)) {
                     pushError(errors, `${segmentPath}.encounterProgress`, 'встреча должна быть после старта и до завершения');
                 }
-                ['parkingArcDeg', 'escapeSweepDeg', 'parkingAltitudeKm', 'closestApproachKm'].forEach((field) => {
+                ['parkingArcDeg', 'escapeSweepDeg', 'parkingAltitudeKm', 'closestApproachKm', 'targetRadiusKm'].forEach((field) => {
                     if (Number.isFinite(segment[field]) && segment[field] <= 0) {
                         pushError(errors, `${segmentPath}.${field}`, 'ожидалось положительное число');
                     }
                 });
+                if (!['center', 'surface'].includes(segment.closestApproachReference)) {
+                    pushError(errors, `${segmentPath}.closestApproachReference`, 'ожидалось center или surface');
+                }
                 if (segment.launchAngleDeg !== undefined && !Number.isFinite(segment.launchAngleDeg)) {
                     pushError(errors, `${segmentPath}.launchAngleDeg`, 'ожидалось конечное число');
                 }

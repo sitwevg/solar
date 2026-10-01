@@ -304,7 +304,9 @@
         let closestSide = normalizedVector({ x: -incomingRelative.y, y: incomingRelative.x, z: 0 });
         const sunward = normalizedVector(vectorScale(venusCenter, -1));
         if (vectorDot(closestSide, sunward) < 0) closestSide = vectorScale(closestSide, -1);
-        arrival = vectorAdd(venusCenter, vectorScale(closestSide, (segment.closestApproachKm || 34854) / AU_KM));
+        const closestApproachFromCenterKm = (segment.closestApproachKm || 34854)
+            + (segment.closestApproachReference === 'surface' ? (segment.targetRadiusKm || 0) : 0);
+        arrival = vectorAdd(venusCenter, vectorScale(closestSide, closestApproachFromCenterKm / AU_KM));
         initialVelocity = lambertInitialVelocity(start, arrival, durationDays);
         const beforeArrival = propagateSolarState(start, initialVelocity, durationDays - .02);
         const arrivalVelocity = vectorScale(vectorSubtract(arrival, beforeArrival), 1 / .02);
