@@ -9,14 +9,14 @@
   <script>var exports = {}; var module = { exports: exports };</script>
   <script src="astronomy.js?v=1.0.1"></script>
   <script>var Astronomy = module.exports;</script>
-  <script src="src/core/mission-schema.js?v=0.5.0"></script>
-  <script src="src/data/missions.js?v=0.5.0"></script>
+  <script src="src/core/mission-schema.js?v=0.5.1"></script>
+  <script src="src/data/missions.js?v=0.5.1"></script>
   <script src="src/core/catalog-bootstrap.js?v=0.1.0"></script>
   <script src="src/core/mission-catalog-view.js?v=0.1.2"></script>
-  <script src="src/core/mission-simulation.js?v=0.5.0"></script>
+  <script src="src/core/mission-simulation.js?v=0.5.1"></script>
   <script src="src/core/space-projection.js?v=0.2.7"></script>
   <link rel="stylesheet" href="src/ui/mission-catalog.css?v=0.1.3">
-  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.0">
+  <link rel="stylesheet" href="src/ui/mission-simulation.css?v=0.4.1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -471,7 +471,7 @@
       </div>
       <div id="mission-accuracy"></div>
     </header>
-    <div id="mission-zoom-hint" aria-hidden="true">Колесо или щипок — масштаб</div>
+    <div id="mission-zoom-hint" aria-hidden="true">Колесо/щипок — масштаб · перетаскивание — карта</div>
     <aside id="mission-story-panel" aria-label="Рассказ о миссии">
       <div id="mission-story-heading">История миссии</div>
       <div id="mission-story-viewport">
@@ -2027,7 +2027,12 @@
     let missionVehicleHit = null;
     let missionVehicleRenderToken = 0;
     let missionManualZoom = 1;
+    let missionPanX = 0;
+    let missionPanY = 0;
     let missionPinchStart = null;
+    let missionMousePanStart = null;
+    let missionTouchPanStart = null;
+    let missionSuppressClick = false;
     const MISSION_VEHICLE_ASSET_VERSION = '0.5.0';
     const missionProgress = document.getElementById('mission-progress');
 
@@ -2056,6 +2061,8 @@
       missionProgress.value = '0';
       missionProgress.setAttribute('aria-valuetext', '0%');
       missionManualZoom = 1;
+      missionPanX = 0;
+      missionPanY = 0;
       setMissionCompleteOpen(false);
       populateMissionStory(activeMission);
       setMissionSimulationPaused(false);
@@ -2263,7 +2270,6 @@
         y: mobile ? height * .28 : height * .5
       };
       const segment = missionSimulationApi.heliocentricTransferSegment(activeMission);
-      const craft = missionSimulationApi.positionAtProgress(activeMission, progress);
       const cameraTarget = missionSimulationApi.heliocentricCameraState(
         activeMission,
         progress,
@@ -2271,9 +2277,25 @@
       );
       const pixelsPerAu = Math.min(visualWidth, height) * .26 * cameraTarget.zoom;
       const screenPoint = point => ({
-        x: viewportCenter.x + (point.x - cameraTarget.x) * pixelsPerAu,
-        y: viewportCenter.y - (point.y - cameraTarget.y) * pixelsPerAu
+        x: viewportCenter.x + missionPanX + (point.x - cameraTarget.x) * pixelsPerAu,
+        y: viewportCenter.y + missionPanY - (point.y - cameraTarget.y) * pixelsPerAu
       });
+      const displayPointAtProgress = shownProgress => {
+        const position = missionSimulationApi.positionAtProgress(activeMission, shownProgress);
+        const screen = screenPoint(position);
+        const departure = missionSimulationApi.heliocentricDepartureDisplay(activeMission, shownProgress);
+        if (!departure) return screen;
+        const earth = screenPoint(missionSimulationApi.heliocentricBodyPosition(
+          activeMission,
+          segment.originBody || 'Earth',
+          shownProgress
+        ));
+        const earthRadius = mobile ? 8 : 10;
+        return {
+          x: earth.x + Math.cos(departure.angle) * earthRadius * departure.radiusScale,
+          y: earth.y + Math.sin(departure.angle) * earthRadius * departure.radiusScale
+        };
+      };
 
       ensureOrbitPaths();
       const innerBodies = new Set(['Mercury', 'Venus', 'Earth', 'Mars']);
@@ -2293,13 +2315,13 @@
         ctx.stroke();
       });
 
-      const path = missionSimulationApi.traveledPath(activeMission, progress, 360);
-      if (path.length > 1) {
+      const pathSampleCount = Math.max(2, Math.ceil(progress * 360));
+      if (progress > 0) {
         ctx.beginPath();
-        path.forEach((point, index) => {
-          const screen = screenPoint(point);
+        for (let index = 0; index <= pathSampleCount; index += 1) {
+          const screen = displayPointAtProgress(progress * index / pathSampleCount);
           if (index === 0) ctx.moveTo(screen.x, screen.y); else ctx.lineTo(screen.x, screen.y);
-        });
+        }
         ctx.strokeStyle = 'rgba(104,145,255,.42)';
         ctx.lineWidth = 1.6;
         ctx.stroke();
@@ -2347,14 +2369,14 @@
       ctx.beginPath();
       for (let index = 0; index <= 24; index += 1) {
         const tailProgress = tailStart + (progress - tailStart) * index / 24;
-        const point = screenPoint(missionSimulationApi.positionAtProgress(activeMission, tailProgress));
+        const point = displayPointAtProgress(tailProgress);
         if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
       }
       ctx.strokeStyle = 'rgba(255,205,103,.55)';
       ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      const vehicle = screenPoint(craft);
+      const vehicle = displayPointAtProgress(progress);
       const pulse = 1 + Math.sin(timestamp / 180) * .15;
       ctx.save();
       ctx.shadowBlur = 26 * pulse;
@@ -2604,7 +2626,12 @@
       missionSimulationPaused = true;
       missionSimulationComplete = false;
       missionManualZoom = 1;
+      missionPanX = 0;
+      missionPanY = 0;
       missionPinchStart = null;
+      missionMousePanStart = null;
+      missionTouchPanStart = null;
+      missionSuppressClick = false;
       missionPresentationMs = missionSimulationApi.presentationDurationSeconds(mission) * 1000;
       populateMissionVehicle(mission);
       document.getElementById('mission-simulation-name').textContent = mission.name;
@@ -2641,6 +2668,8 @@
       activeMission = null;
       missionVehicleHit = null;
       missionPinchStart = null;
+      missionMousePanStart = null;
+      missionTouchPanStart = null;
       missionSimulation.classList.remove('open');
       missionSimulation.classList.remove('interplanetary');
       missionSimulation.setAttribute('aria-hidden', 'true');
@@ -2689,6 +2718,10 @@
       }
     });
     missionSimulationCanvas.addEventListener('click', event => {
+      if (missionSuppressClick) {
+        missionSuppressClick = false;
+        return;
+      }
       if (!missionVehicleHit) return;
       const rect = missionSimulationCanvas.getBoundingClientRect();
       if (Math.hypot(event.clientX - rect.left - missionVehicleHit.x, event.clientY - rect.top - missionVehicleHit.y) <= missionVehicleHit.radius) {
@@ -2705,27 +2738,72 @@
       );
       missionManualZoom = Math.max(.5, Math.min(1.8, missionManualZoom * factor));
     }, { passive: false });
-    missionSimulationCanvas.addEventListener('touchstart', event => {
-      if (!activeMission || !missionSimulationApi.heliocentricTransferSegment(activeMission)
-          || event.touches.length !== 2) return;
-      const [first, second] = event.touches;
-      missionPinchStart = {
-        distance: Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY),
-        zoom: missionManualZoom
+    missionSimulationCanvas.addEventListener('mousedown', event => {
+      if (event.button !== 0 || !activeMission
+          || !missionSimulationApi.heliocentricTransferSegment(activeMission)) return;
+      missionMousePanStart = {
+        x: event.clientX, y: event.clientY,
+        panX: missionPanX, panY: missionPanY,
+        moved: false
       };
+      missionSimulationCanvas.style.cursor = 'grabbing';
+    });
+    missionSimulationCanvas.addEventListener('mousemove', event => {
+      if (!missionMousePanStart) return;
+      const dx = event.clientX - missionMousePanStart.x;
+      const dy = event.clientY - missionMousePanStart.y;
+      if (Math.hypot(dx, dy) > 4) missionMousePanStart.moved = true;
+      missionPanX = missionMousePanStart.panX + dx;
+      missionPanY = missionMousePanStart.panY + dy;
+    });
+    const finishMissionMousePan = () => {
+      if (!missionMousePanStart) return;
+      missionSuppressClick = missionMousePanStart.moved;
+      missionMousePanStart = null;
+      missionSimulationCanvas.style.cursor = 'grab';
+    };
+    missionSimulationCanvas.addEventListener('mouseup', finishMissionMousePan);
+    missionSimulationCanvas.addEventListener('mouseleave', finishMissionMousePan);
+    missionSimulationCanvas.addEventListener('touchstart', event => {
+      if (!activeMission || !missionSimulationApi.heliocentricTransferSegment(activeMission)) return;
+      if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        missionTouchPanStart = {
+          x: touch.clientX, y: touch.clientY,
+          panX: missionPanX, panY: missionPanY
+        };
+        return;
+      }
+      if (event.touches.length === 2) {
+        const [first, second] = event.touches;
+        missionTouchPanStart = null;
+        missionPinchStart = {
+          distance: Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY),
+          zoom: missionManualZoom
+        };
+      }
     }, { passive: true });
     missionSimulationCanvas.addEventListener('touchmove', event => {
-      if (!missionPinchStart || event.touches.length !== 2) return;
-      event.preventDefault();
-      const [first, second] = event.touches;
-      const distance = Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
-      missionManualZoom = Math.max(.5, Math.min(
-        1.8,
-        missionPinchStart.zoom * distance / Math.max(1, missionPinchStart.distance)
-      ));
+      if (missionTouchPanStart && event.touches.length === 1) {
+        event.preventDefault();
+        const touch = event.touches[0];
+        missionPanX = missionTouchPanStart.panX + touch.clientX - missionTouchPanStart.x;
+        missionPanY = missionTouchPanStart.panY + touch.clientY - missionTouchPanStart.y;
+        return;
+      }
+      if (missionPinchStart && event.touches.length === 2) {
+        event.preventDefault();
+        const [first, second] = event.touches;
+        const distance = Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+        missionManualZoom = Math.max(.5, Math.min(
+          1.8,
+          missionPinchStart.zoom * distance / Math.max(1, missionPinchStart.distance)
+        ));
+      }
     }, { passive: false });
     missionSimulationCanvas.addEventListener('touchend', event => {
       if (event.touches.length < 2) missionPinchStart = null;
+      if (event.touches.length === 0) missionTouchPanStart = null;
     }, { passive: true });
 
     // ── Touch / click (main canvas) ───────────────────────────────────

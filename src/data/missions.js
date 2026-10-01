@@ -540,9 +540,8 @@
             trajectory: heliocentricTransferTrajectory('1962-08-27T06:53:14Z', '1963-01-03T07:00:00Z', {
                 originBody: 'Earth', targetBody: 'Venus',
                 departureProgress: 0.12, encounterProgress: 0.88,
-                launchAngleDeg: -150, parkingTurns: 0.345,
-                parkingDisplayRadiusAu: 0.034, flybyDisplayRadiusAu: 0.026,
-                transferHandleScale: 0.38, postFlybyAngleDeg: 24, postFlybyRadiusAu: 0.73,
+                launchAngleDeg: -150, parkingArcDeg: 62, escapeSweepDeg: 145,
+                parkingAltitudeKm: 185, closestApproachKm: 34854, encounterBendDeg: 36,
                 timeline: [
                     { progress: 0, date: '1962-08-27T06:53:14Z' },
                     { progress: 0.06, date: '1962-08-27T07:05:00Z' },

@@ -140,12 +140,12 @@ test('схема проверяет опорные точки межпланет
     const broken = structuredClone(missions.find(mission => mission.id === 'mariner-2'));
     const segment = broken.trajectory.segments[0];
     segment.encounterProgress = segment.departureProgress;
-    segment.flybyDisplayRadiusAu = -1;
+    segment.closestApproachKm = -1;
     segment.timeline.at(-1).progress = .9;
 
     const result = schema.validateCatalog([broken]);
     assert.equal(result.valid, false);
     assert.ok(result.errors.some(error => error.includes('encounterProgress')));
-    assert.ok(result.errors.some(error => error.includes('flybyDisplayRadiusAu')));
+    assert.ok(result.errors.some(error => error.includes('closestApproachKm')));
     assert.ok(result.errors.some(error => error.includes('шкала должна идти от 0 до 1')));
 });

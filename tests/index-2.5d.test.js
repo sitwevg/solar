@@ -148,11 +148,11 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /getImg\('moons\/moon\.png'\)/);
     assert.match(html, /id="mission-vehicle-info"/);
     assert.match(html, /id="mission-vehicle-image"/);
-    assert.match(html, /src\/core\/mission-schema\.js\?v=0\.5\.0/);
-    assert.match(html, /src\/data\/missions\.js\?v=0\.5\.0/);
-    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.5\.0/);
+    assert.match(html, /src\/core\/mission-schema\.js\?v=0\.5\.1/);
+    assert.match(html, /src\/data\/missions\.js\?v=0\.5\.1/);
+    assert.match(html, /src\/core\/mission-simulation\.js\?v=0\.5\.1/);
     assert.match(html, /updateMissionStory\(elapsedFraction\)/);
-    assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.4\.0/);
+    assert.match(html, /src\/ui\/mission-simulation\.css\?v=0\.4\.1/);
     assert.match(html, /src\/ui\/mission-catalog\.css\?v=0\.1\.3/);
     assert.match(html, /const MISSION_VEHICLE_ASSET_VERSION = '0\.5\.0'/);
     assert.match(html, /panel\.dataset\.missionId = mission\.id/);
@@ -177,6 +177,9 @@ test('каталог миссий доступен с карты и блокир
     assert.match(html, /function drawHeliocentricMission\(progress, timestamp\)/);
     assert.match(html, /missionSimulationApi\.heliocentricCameraState/);
     assert.match(html, /missionManualZoom = Math\.max\(\.5, Math\.min\(1\.8/);
-    assert.match(html, /Колесо или щипок — масштаб/);
+    assert.match(html, /Колесо\/щипок — масштаб · перетаскивание — карта/);
+    assert.match(html, /missionPanX = missionMousePanStart\.panX \+ dx/);
+    assert.match(html, /missionPanY = missionTouchPanStart\.panY \+ touch\.clientY/);
+    assert.match(missionSimulationCss, /#mission-simulation-canvas[^}]*cursor:grab[^}]*touch-action:none/);
     assert.match(html, /simTime = new Date\(\)/);
 });

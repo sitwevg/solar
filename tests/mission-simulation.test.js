@@ -21,7 +21,7 @@ test('подготовлены четыре околоземные, пять л�
     });
 });
 
-test('Mariner 2 плавно уходит с парковочной орбиты и проходит рядом с эфемеридной Венерой', () => {
+test('Mariner 2 проходит короткую парковочную дугу и синхронно встречает эфемеридную Венеру', () => {
     const mission = missions.find(item => item.id === 'mariner-2');
     const segment = simulation.heliocentricTransferSegment(mission);
     assert.ok(segment);
@@ -32,9 +32,12 @@ test('Mariner 2 плавно уходит с парковочной орбиты
 
     const start = simulation.positionAtProgress(mission, 0);
     const earth = simulation.heliocentricBodyPosition(mission, 'Earth', 0);
-    assert.ok(Math.hypot(start.x - earth.x, start.y - earth.y) < segment.parkingDisplayRadiusAu);
+    assert.ok(Math.hypot(start.x - earth.x, start.y - earth.y) < 1e-10);
     assert.equal(start.phase, 'earth-launch');
     assert.equal(simulation.positionAtProgress(mission, 0.06).phase, 'earth-parking');
+    const departureDisplay = simulation.heliocentricDepartureDisplay(mission, segment.departureProgress);
+    assert.ok(departureDisplay.radiusScale < 2, 'экранный уход должен оставаться рядом с Землёй');
+    assert.ok(segment.parkingArcDeg < 180, 'полного витка вокруг Земли не было');
     assert.equal(simulation.positionAtProgress(mission, 0.5).phase, 'interplanetary-cruise');
     assert.equal(simulation.positionAtProgress(mission, 0.9).phase, 'planetary-flyby');
 
@@ -42,23 +45,17 @@ test('Mariner 2 плавно уходит с парковочной орбиты
     const venus = simulation.heliocentricBodyPosition(mission, 'Venus', segment.encounterProgress);
     assert.ok(Math.abs(
         Math.hypot(encounter.x - venus.x, encounter.y - venus.y, encounter.z - venus.z)
-        - segment.flybyDisplayRadiusAu
-    ) < 2e-5);
-
-    const turnAt = progress => {
-        const epsilon = .0002;
-        const before = simulation.positionAtProgress(mission, progress - epsilon);
-        const join = simulation.positionAtProgress(mission, progress);
-        const after = simulation.positionAtProgress(mission, progress + epsilon);
-        const incoming = { x: join.x - before.x, y: join.y - before.y };
-        const outgoing = { x: after.x - join.x, y: after.y - join.y };
-        return Math.abs(Math.atan2(
-            incoming.x * outgoing.y - incoming.y * outgoing.x,
-            incoming.x * outgoing.x + incoming.y * outgoing.y
-        ) * 180 / Math.PI);
+        - segment.closestApproachKm / 149597870.7
+    ) < 2e-6);
+    const venusDistance = progress => {
+        const point = simulation.positionAtProgress(mission, progress);
+        const body = simulation.heliocentricBodyPosition(mission, 'Venus', progress);
+        return Math.hypot(point.x - body.x, point.y - body.y, point.z - body.z);
     };
-    assert.ok(turnAt(segment.departureProgress) < 3, 'уход от Земли не должен ломать траекторию');
-    assert.ok(turnAt(segment.encounterProgress) < 3, 'пролёт Венеры должен быть гладким');
+    assert.ok(venusDistance(.86) > venusDistance(.87));
+    assert.ok(venusDistance(.87) > venusDistance(.88));
+    assert.ok(venusDistance(.89) > venusDistance(.88));
+    assert.ok(venusDistance(.9) > venusDistance(.89), 'после пролёта аппарат не должен возвращаться к Венере');
 
     const startCamera = simulation.heliocentricCameraState(mission, 0, 1);
     const cruiseCamera = simulation.heliocentricCameraState(mission, .5, 1);

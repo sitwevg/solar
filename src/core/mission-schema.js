@@ -373,8 +373,8 @@
                 if (!isIsoDate(segment.startDate)) pushError(errors, `${segmentPath}.startDate`, 'ожидалась дата ISO 8601');
                 if (!isIsoDate(segment.endDate)) pushError(errors, `${segmentPath}.endDate`, 'ожидалась дата ISO 8601');
                 ['originBody', 'targetBody'].forEach((field) => requireString(segment[field], `${segmentPath}.${field}`, errors));
-                ['departureProgress', 'encounterProgress', 'parkingTurns', 'parkingDisplayRadiusAu',
-                    'flybyDisplayRadiusAu', 'transferHandleScale', 'postFlybyAngleDeg', 'postFlybyRadiusAu']
+                ['departureProgress', 'encounterProgress', 'parkingArcDeg', 'escapeSweepDeg',
+                    'parkingAltitudeKm', 'closestApproachKm', 'encounterBendDeg']
                     .forEach((field) => {
                         if (!Number.isFinite(segment[field])) {
                             pushError(errors, `${segmentPath}.${field}`, 'ожидалось конечное число');
@@ -388,8 +388,7 @@
                     && (segment.encounterProgress <= segment.departureProgress || segment.encounterProgress >= 1)) {
                     pushError(errors, `${segmentPath}.encounterProgress`, 'встреча должна быть после старта и до завершения');
                 }
-                ['parkingTurns', 'parkingDisplayRadiusAu', 'flybyDisplayRadiusAu',
-                    'transferHandleScale', 'postFlybyRadiusAu'].forEach((field) => {
+                ['parkingArcDeg', 'escapeSweepDeg', 'parkingAltitudeKm', 'closestApproachKm'].forEach((field) => {
                     if (Number.isFinite(segment[field]) && segment[field] <= 0) {
                         pushError(errors, `${segmentPath}.${field}`, 'ожидалось положительное число');
                     }
